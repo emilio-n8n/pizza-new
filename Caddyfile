@@ -1,0 +1,15 @@
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	handle /phone-ws* {
+		reverse_proxy runtime:8080
+	}
+
+	handle {
+		reverse_proxy app:3000
+	}
+}
+
+{$RUNTIME_DOMAIN} {
+	reverse_proxy runtime:8080
+}

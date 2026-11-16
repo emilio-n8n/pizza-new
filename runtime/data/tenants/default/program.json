@@ -1,0 +1,638 @@
+{
+  "flowId": "chez-luigi",
+  "version": 4,
+  "voice": "sophie-fr",
+  "states": {
+    "greeting": {
+      "id": "greeting",
+      "kind": "start",
+      "say": "Bonjour, bienvenue chez Luigi. Vous appelez pour commander ou pour une information ?",
+      "audio": "chez-luigi/greeting/v4",
+      "transitions": [
+        {
+          "id": "greeting__mode__commander",
+          "to": "mode",
+          "intent": "Commander",
+          "examples": [
+            "je voudrais commander",
+            "je veux une pizza",
+            "bonsoir je commande",
+            "je peux avoir deux pizzas",
+            "c’est pour une commande",
+            "je voudrais deux margheritas",
+            "c’est pour une livraison",
+            "je voudrais commander à livrer",
+            "vous livrez ce soir",
+            "je veux passer commande"
+          ],
+          "question": "Commander. je voudrais commander ; je veux une pizza ; bonsoir je commande ; je peux avoir deux pizzas ; c’est pour une commande ; je voudrais deux margheritas ; c’est pour une livraison ; je voudrais commander à livrer ; vous livrez ce soir ; je veux passer commande"
+        },
+        {
+          "id": "greeting__info__information",
+          "to": "info",
+          "intent": "Information",
+          "examples": [
+            "vous êtes ouverts",
+            "quels sont vos horaires",
+            "vous livrez",
+            "combien de temps pour la livraison",
+            "je peux voir le menu",
+            "c’est quoi vos prix"
+          ],
+          "question": "Information. vous êtes ouverts ; quels sont vos horaires ; vous livrez ; combien de temps pour la livraison ; je peux voir le menu ; c’est quoi vos prix"
+        },
+        {
+          "id": "greeting__handoff__un-humain",
+          "to": "handoff",
+          "intent": "Un humain",
+          "examples": [
+            "je veux parler à quelqu’un",
+            "un humain",
+            "le patron",
+            "passez-moi la pizzeria"
+          ],
+          "question": "Un humain. je veux parler à quelqu’un ; un humain ; le patron ; passez-moi la pizzeria"
+        }
+      ]
+    },
+    "mode": {
+      "id": "mode",
+      "kind": "branch",
+      "say": "C'est pour du sur place, à emporter ou en livraison ?",
+      "audio": "chez-luigi/mode/v4",
+      "transitions": [
+        {
+          "id": "mode__menu__sur-place",
+          "to": "menu",
+          "intent": "Sur place",
+          "examples": [
+            "sur place",
+            "je mange sur place",
+            "pour ici",
+            "on reste"
+          ],
+          "question": "Sur place. sur place ; je mange sur place ; pour ici ; on reste"
+        },
+        {
+          "id": "mode__menu__-emporter",
+          "to": "menu",
+          "intent": "À emporter",
+          "examples": [
+            "à emporter",
+            "je viens chercher",
+            "take away",
+            "je passe récupérer"
+          ],
+          "question": "À emporter. à emporter ; je viens chercher ; take away ; je passe récupérer"
+        },
+        {
+          "id": "mode__address__en-livraison",
+          "to": "address",
+          "intent": "En livraison",
+          "examples": [
+            "en livraison",
+            "livrez chez moi",
+            "vous livrez au 11e",
+            "j’habite à côté",
+            "livraison"
+          ],
+          "question": "En livraison. en livraison ; livrez chez moi ; vous livrez au 11e ; j’habite à côté ; livraison"
+        },
+        {
+          "id": "mode__handoff__autre",
+          "to": "handoff",
+          "intent": "Autre",
+          "examples": [
+            "je ne sais pas",
+            "autre chose",
+            "on verra"
+          ],
+          "question": "Autre. je ne sais pas ; autre chose ; on verra"
+        }
+      ]
+    },
+    "address": {
+      "id": "address",
+      "kind": "capture",
+      "say": "Quelle est l'adresse de livraison ?",
+      "audio": "chez-luigi/address/v4",
+      "slot": "address",
+      "transitions": [
+        {
+          "id": "address__menu__adresse-not-e",
+          "to": "menu",
+          "intent": "Adresse notée",
+          "examples": [
+            "continuer"
+          ],
+          "question": "Adresse notée. continuer"
+        }
+      ]
+    },
+    "menu": {
+      "id": "menu",
+      "kind": "branch",
+      "say": "Très bien. Vous voulez une pizza, des pâtes ou une boisson ?",
+      "audio": "chez-luigi/menu/v4",
+      "transitions": [
+        {
+          "id": "menu__pizzas__pizzas",
+          "to": "pizzas",
+          "intent": "Pizzas",
+          "examples": [
+            "une pizza",
+            "des pizzas",
+            "je veux une pizza",
+            "montrez-moi les pizzas",
+            "la carte des pizzas"
+          ],
+          "question": "Pizzas. une pizza ; des pizzas ; je veux une pizza ; montrez-moi les pizzas ; la carte des pizzas"
+        },
+        {
+          "id": "menu__pasta__p-tes",
+          "to": "pasta",
+          "intent": "Pâtes",
+          "examples": [
+            "des pâtes",
+            "un plat de pâtes",
+            "vous avez des pâtes",
+            "une carbonara"
+          ],
+          "question": "Pâtes. des pâtes ; un plat de pâtes ; vous avez des pâtes ; une carbonara"
+        },
+        {
+          "id": "menu__drinks__boissons",
+          "to": "drinks",
+          "intent": "Boissons",
+          "examples": [
+            "une boisson",
+            "un coca",
+            "quelque chose à boire",
+            "de l’eau"
+          ],
+          "question": "Boissons. une boisson ; un coca ; quelque chose à boire ; de l’eau"
+        },
+        {
+          "id": "menu__handoff__autre",
+          "to": "handoff",
+          "intent": "Autre",
+          "examples": [
+            "je ne sais pas",
+            "autre chose",
+            "un dessert"
+          ],
+          "question": "Autre. je ne sais pas ; autre chose ; un dessert"
+        }
+      ]
+    },
+    "pasta": {
+      "id": "pasta",
+      "kind": "say",
+      "say": "Ce soir, nous ne faisons que des pizzas. Je vous montre la carte ?",
+      "audio": "chez-luigi/pasta/v4",
+      "transitions": [
+        {
+          "id": "pasta__pizzas__voir-la-carte",
+          "to": "pizzas",
+          "intent": "Voir la carte",
+          "examples": [
+            "oui",
+            "montrez-moi",
+            "ok"
+          ],
+          "question": "Voir la carte. oui ; montrez-moi ; ok"
+        }
+      ]
+    },
+    "pizzas": {
+      "id": "pizzas",
+      "kind": "say",
+      "say": "Nos pizzas ce soir : Margherita 12,50, Regina 13,50, Quatre fromages 14,00, Diavola 15,00.",
+      "audio": "chez-luigi/pizzas/v4",
+      "transitions": [
+        {
+          "id": "pizzas__pizza_choice__carte",
+          "to": "pizza_choice",
+          "intent": "Carte",
+          "examples": [
+            "continuer"
+          ],
+          "question": "Carte. continuer"
+        }
+      ]
+    },
+    "pizza_choice": {
+      "id": "pizza_choice",
+      "kind": "branch",
+      "say": "Quelle pizza vous tente ?",
+      "audio": "chez-luigi/pizza_choice/v4",
+      "transitions": [
+        {
+          "id": "pizza_choice__quantity__margherita",
+          "to": "quantity",
+          "intent": "Margherita",
+          "examples": [
+            "une margherita",
+            "margherita",
+            "deux margheritas",
+            "la classique"
+          ],
+          "question": "Margherita. une margherita ; margherita ; deux margheritas ; la classique"
+        },
+        {
+          "id": "pizza_choice__quantity__regina",
+          "to": "quantity",
+          "intent": "Regina",
+          "examples": [
+            "une regina",
+            "regina",
+            "avec du jambon",
+            "celle avec les champignons"
+          ],
+          "question": "Regina. une regina ; regina ; avec du jambon ; celle avec les champignons"
+        },
+        {
+          "id": "pizza_choice__quantity__quatre-fromages",
+          "to": "quantity",
+          "intent": "Quatre fromages",
+          "examples": [
+            "quatre fromages",
+            "une quatre fromages",
+            "celle avec plusieurs fromages"
+          ],
+          "question": "Quatre fromages. quatre fromages ; une quatre fromages ; celle avec plusieurs fromages"
+        },
+        {
+          "id": "pizza_choice__quantity__diavola",
+          "to": "quantity",
+          "intent": "Diavola",
+          "examples": [
+            "une diavola",
+            "diavola",
+            "la piquante",
+            "celle avec du salami"
+          ],
+          "question": "Diavola. une diavola ; diavola ; la piquante ; celle avec du salami"
+        },
+        {
+          "id": "pizza_choice__handoff__autre-pizza",
+          "to": "handoff",
+          "intent": "Autre pizza",
+          "examples": [
+            "autre chose",
+            "vous avez une autre pizza",
+            "je ne sais pas"
+          ],
+          "question": "Autre pizza. autre chose ; vous avez une autre pizza ; je ne sais pas"
+        }
+      ]
+    },
+    "quantity": {
+      "id": "quantity",
+      "kind": "branch",
+      "say": "Combien de pizzas ?",
+      "audio": "chez-luigi/quantity/v4",
+      "transitions": [
+        {
+          "id": "quantity__drinks__1-pizza",
+          "to": "drinks",
+          "intent": "1 pizza",
+          "examples": [
+            "une",
+            "une seule",
+            "juste une"
+          ],
+          "question": "1 pizza. une ; une seule ; juste une"
+        },
+        {
+          "id": "quantity__drinks__2-pizzas",
+          "to": "drinks",
+          "intent": "2 pizzas",
+          "examples": [
+            "deux",
+            "deux pizzas",
+            "une pour moi une pour ma femme",
+            "deux margheritas"
+          ],
+          "question": "2 pizzas. deux ; deux pizzas ; une pour moi une pour ma femme ; deux margheritas"
+        },
+        {
+          "id": "quantity__drinks__3-pizzas",
+          "to": "drinks",
+          "intent": "3 pizzas",
+          "examples": [
+            "trois",
+            "trois pizzas"
+          ],
+          "question": "3 pizzas. trois ; trois pizzas"
+        },
+        {
+          "id": "quantity__handoff__beaucoup",
+          "to": "handoff",
+          "intent": "Beaucoup",
+          "examples": [
+            "beaucoup",
+            "pour dix personnes",
+            "un grand groupe"
+          ],
+          "question": "Beaucoup. beaucoup ; pour dix personnes ; un grand groupe"
+        }
+      ]
+    },
+    "drinks": {
+      "id": "drinks",
+      "kind": "branch",
+      "say": "Avec une boisson ?",
+      "audio": "chez-luigi/drinks/v4",
+      "transitions": [
+        {
+          "id": "drinks__drink_choice__avec-boisson",
+          "to": "drink_choice",
+          "intent": "Avec boisson",
+          "examples": [
+            "oui",
+            "avec un coca",
+            "oui volontiers",
+            "une boisson"
+          ],
+          "question": "Avec boisson. oui ; avec un coca ; oui volontiers ; une boisson"
+        },
+        {
+          "id": "drinks__confirm__sans-boisson",
+          "to": "confirm",
+          "intent": "Sans boisson",
+          "examples": [
+            "non",
+            "sans boisson",
+            "juste les pizzas",
+            "rien à boire"
+          ],
+          "question": "Sans boisson. non ; sans boisson ; juste les pizzas ; rien à boire"
+        }
+      ]
+    },
+    "drink_choice": {
+      "id": "drink_choice",
+      "kind": "branch",
+      "say": "Coca, eau ou diabolo ?",
+      "audio": "chez-luigi/drink_choice/v4",
+      "transitions": [
+        {
+          "id": "drink_choice__confirm__coca",
+          "to": "confirm",
+          "intent": "Coca",
+          "examples": [
+            "un coca",
+            "coca",
+            "coca zéro"
+          ],
+          "question": "Coca. un coca ; coca ; coca zéro"
+        },
+        {
+          "id": "drink_choice__confirm__eau",
+          "to": "confirm",
+          "intent": "Eau",
+          "examples": [
+            "une eau",
+            "de l’eau",
+            "eau plate"
+          ],
+          "question": "Eau. une eau ; de l’eau ; eau plate"
+        },
+        {
+          "id": "drink_choice__confirm__diabolo",
+          "to": "confirm",
+          "intent": "Diabolo",
+          "examples": [
+            "un diabolo",
+            "diabolo fraise",
+            "diabolo menthe"
+          ],
+          "question": "Diabolo. un diabolo ; diabolo fraise ; diabolo menthe"
+        },
+        {
+          "id": "drink_choice__handoff__autre-boisson",
+          "to": "handoff",
+          "intent": "Autre boisson",
+          "examples": [
+            "autre chose",
+            "un jus",
+            "de la bière"
+          ],
+          "question": "Autre boisson. autre chose ; un jus ; de la bière"
+        }
+      ]
+    },
+    "confirm": {
+      "id": "confirm",
+      "kind": "branch",
+      "say": "Je récapitule : {{order}}. On valide ?",
+      "audio": "chez-luigi/confirm/v4",
+      "transitions": [
+        {
+          "id": "confirm__create__valider",
+          "to": "create",
+          "intent": "Valider",
+          "examples": [
+            "oui",
+            "c’est bon",
+            "je valide",
+            "parfait",
+            "oui c’est ça"
+          ],
+          "question": "Valider. oui ; c’est bon ; je valide ; parfait ; oui c’est ça"
+        },
+        {
+          "id": "confirm__handoff__modifier",
+          "to": "handoff",
+          "intent": "Modifier",
+          "examples": [
+            "non",
+            "attendez",
+            "je veux changer",
+            "pas tout à fait"
+          ],
+          "question": "Modifier. non ; attendez ; je veux changer ; pas tout à fait"
+        }
+      ]
+    },
+    "create": {
+      "id": "create",
+      "kind": "action",
+      "say": "C'est envoyé en cuisine. Commande {{reference}}. Vous recevez le lien de suivi par SMS. À tout de suite.",
+      "audio": "chez-luigi/create/v4",
+      "tool": "create_order",
+      "transitions": [
+        {
+          "id": "create__end__cr-e",
+          "to": "end",
+          "intent": "Créée",
+          "examples": [
+            "continuer"
+          ],
+          "question": "Créée. continuer"
+        }
+      ]
+    },
+    "info": {
+      "id": "info",
+      "kind": "say",
+      "say": "Nous sommes ouverts du mardi au dimanche, de 11 h 30 à 14 h 30 et de 18 h à 22 h 30. La livraison est à 2,50 €, offerte dès 30 €.",
+      "audio": "chez-luigi/info/v4",
+      "transitions": [
+        {
+          "id": "info__end__info",
+          "to": "end",
+          "intent": "Info",
+          "examples": [
+            "continuer"
+          ],
+          "question": "Info. continuer"
+        }
+      ]
+    },
+    "handoff": {
+      "id": "handoff",
+      "kind": "handoff",
+      "say": "Veuillez patienter quelques secondes, je vérifie avec la pizzeria.",
+      "audio": "chez-luigi/handoff/v4",
+      "transitions": [
+        {
+          "id": "handoff__end__fin",
+          "to": "end",
+          "intent": "Fin",
+          "examples": [
+            "continuer"
+          ],
+          "question": "Fin. continuer"
+        }
+      ]
+    },
+    "end": {
+      "id": "end",
+      "kind": "end",
+      "say": "Merci, à bientôt.",
+      "audio": "chez-luigi/end/v4",
+      "transitions": []
+    }
+  },
+  "audio": [
+    {
+      "key": "chez-luigi/greeting/v4",
+      "nodeId": "greeting",
+      "text": "Bonjour, bienvenue chez Luigi. Vous appelez pour commander ou pour une information ?",
+      "voice": "sophie-fr",
+      "characters": 84
+    },
+    {
+      "key": "chez-luigi/mode/v4",
+      "nodeId": "mode",
+      "text": "C'est pour du sur place, à emporter ou en livraison ?",
+      "voice": "sophie-fr",
+      "characters": 53
+    },
+    {
+      "key": "chez-luigi/address/v4",
+      "nodeId": "address",
+      "text": "Quelle est l'adresse de livraison ?",
+      "voice": "sophie-fr",
+      "characters": 35
+    },
+    {
+      "key": "chez-luigi/menu/v4",
+      "nodeId": "menu",
+      "text": "Très bien. Vous voulez une pizza, des pâtes ou une boisson ?",
+      "voice": "sophie-fr",
+      "characters": 60
+    },
+    {
+      "key": "chez-luigi/pasta/v4",
+      "nodeId": "pasta",
+      "text": "Ce soir, nous ne faisons que des pizzas. Je vous montre la carte ?",
+      "voice": "sophie-fr",
+      "characters": 66
+    },
+    {
+      "key": "chez-luigi/pizzas/v4",
+      "nodeId": "pizzas",
+      "text": "Nos pizzas ce soir : Margherita 12,50, Regina 13,50, Quatre fromages 14,00, Diavola 15,00.",
+      "voice": "sophie-fr",
+      "characters": 90
+    },
+    {
+      "key": "chez-luigi/pizza_choice/v4",
+      "nodeId": "pizza_choice",
+      "text": "Quelle pizza vous tente ?",
+      "voice": "sophie-fr",
+      "characters": 25
+    },
+    {
+      "key": "chez-luigi/quantity/v4",
+      "nodeId": "quantity",
+      "text": "Combien de pizzas ?",
+      "voice": "sophie-fr",
+      "characters": 19
+    },
+    {
+      "key": "chez-luigi/drinks/v4",
+      "nodeId": "drinks",
+      "text": "Avec une boisson ?",
+      "voice": "sophie-fr",
+      "characters": 18
+    },
+    {
+      "key": "chez-luigi/drink_choice/v4",
+      "nodeId": "drink_choice",
+      "text": "Coca, eau ou diabolo ?",
+      "voice": "sophie-fr",
+      "characters": 22
+    },
+    {
+      "key": "chez-luigi/confirm/v4",
+      "nodeId": "confirm",
+      "text": "Je récapitule : {{order}}. On valide ?",
+      "voice": "sophie-fr",
+      "characters": 38
+    },
+    {
+      "key": "chez-luigi/create/v4",
+      "nodeId": "create",
+      "text": "C'est envoyé en cuisine. Commande {{reference}}. Vous recevez le lien de suivi par SMS. À tout de suite.",
+      "voice": "sophie-fr",
+      "characters": 104
+    },
+    {
+      "key": "chez-luigi/info/v4",
+      "nodeId": "info",
+      "text": "Nous sommes ouverts du mardi au dimanche, de 11 h 30 à 14 h 30 et de 18 h à 22 h 30. La livraison est à 2,50 €, offerte dès 30 €.",
+      "voice": "sophie-fr",
+      "characters": 129
+    },
+    {
+      "key": "chez-luigi/handoff/v4",
+      "nodeId": "handoff",
+      "text": "Veuillez patienter quelques secondes, je vérifie avec la pizzeria.",
+      "voice": "sophie-fr",
+      "characters": 66
+    },
+    {
+      "key": "chez-luigi/end/v4",
+      "nodeId": "end",
+      "text": "Merci, à bientôt.",
+      "voice": "sophie-fr",
+      "characters": 17
+    },
+    {
+      "key": "pizzavoice/bridge/v1",
+      "nodeId": "handoff",
+      "text": "Veuillez patienter quelques secondes, je vérifie avec la pizzeria.",
+      "voice": "sophie-fr",
+      "characters": 66
+    }
+  ],
+  "fallback": {
+    "threshold": 0.55,
+    "bridgeText": "Veuillez patienter quelques secondes, je vérifie avec la pizzeria.",
+    "bridgeAudio": "pizzavoice/bridge/v1"
+  }
+}

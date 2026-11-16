@@ -1,0 +1,4 @@
+node_modules
+data/tenants/*/audio
+.env
+*.log
