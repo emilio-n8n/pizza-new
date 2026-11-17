@@ -33,6 +33,7 @@ export class GeminiLive {
     private systemPrompt: string,
     private context: string,
     private tools: GeminiTool[] = [],
+    private voice: string = config.ttsVoice,
   ) {}
 
   connect() {
@@ -54,7 +55,7 @@ export class GeminiLive {
           responseModalities: ['AUDIO'],
           speechConfig: {
             voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: config.ttsVoice },
+              prebuiltVoiceConfig: { voiceName: this.voice },
             },
           },
         },

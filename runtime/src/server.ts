@@ -12,6 +12,7 @@ import {
 import { config } from './config'
 import { loadTenant } from './program'
 import { CallSession, type SessionTransport } from './session'
+import { OnboardingSession } from './onboarding'
 
 class TwilioTransport implements SessionTransport {
   constructor(
@@ -237,7 +238,7 @@ const wss = new WebSocketServer({ noServer: true })
 
 server.on('upgrade', (request, socket, head) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
-  if (!['/media', '/web-call', '/phone-ws'].includes(url.pathname)) {
+  if (!['/media', '/web-call', '/phone-ws', '/onboarding-ws'].includes(url.pathname)) {
     socket.destroy()
     return
   }
@@ -310,6 +311,85 @@ function handleTwilio(ws: WebSocket, request: IncomingMessage) {
   ws.on('error', (error) => console.error('[twilio] websocket error', error.message))
 }
 
+function handleOnboarding(ws: WebSocket) {
+  let session: OnboardingSession | null = null
+
+  const send = (payload: Record<string, unknown>) => {
+    if (ws.readyState === 1) ws.send(JSON.stringify(payload))
+  }
+
+  ws.on('message', (raw) => {
+    let message: {
+      type?: string
+      sessionId?: string
+      voice?: string
+      data?: string
+      sampleRate?: number
+      text?: string
+    }
+
+    try {
+      message = JSON.parse(raw.toString())
+    } catch {
+      return
+    }
+
+    if (message.type === 'start') {
+      if (!message.sessionId) {
+        send({ type: 'error', message: 'sessionId manquant' })
+        ws.close(1008, 'sessionId manquant')
+        return
+      }
+      session = new OnboardingSession(
+        message.sessionId,
+        message.voice ?? config.ttsVoice,
+        (mulaw) => {
+          if (ws.readyState !== 1) return
+          const pcm = mulawToPcm16(mulaw)
+          const buffer = Buffer.alloc(pcm.length * 2)
+          for (let i = 0; i < pcm.length; i += 1) buffer.writeInt16LE(pcm[i], i * 2)
+          ws.send(
+            JSON.stringify({
+              type: 'audio',
+              sampleRate: 8000,
+              data: buffer.toString('base64'),
+            }),
+          )
+        },
+        send,
+      )
+      console.log('[onboarding] start', { sessionId: message.sessionId })
+      session.start()
+      return
+    }
+
+    if (message.type === 'text' && message.text) {
+      send({ type: 'transcript', role: 'client', text: message.text })
+      session?.sendText(message.text)
+      return
+    }
+
+    if (message.type === 'audio' && message.data) {
+      const pcm = pcm16LeToSamples(Buffer.from(message.data, 'base64'))
+      const rate = message.sampleRate ?? 16000
+      const pcm8 = resample(pcm, rate, 8000)
+      session?.sendAudio(pcm16ToMulaw(pcm8))
+      return
+    }
+
+    if (message.type === 'stop') {
+      session?.close()
+      ws.close()
+    }
+  })
+
+  ws.on('close', () => {
+    console.log('[onboarding] fin')
+    session?.close()
+  })
+  ws.on('error', (error) => console.error('[onboarding] ws', error.message))
+}
+
 function handleWebCall(ws: WebSocket) {
   let session: CallSession | null = null
 
@@ -372,6 +452,10 @@ function handleWebCall(ws: WebSocket) {
 
 wss.on('connection', (ws, request) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
+  if (url.pathname === '/onboarding-ws') {
+    handleOnboarding(ws)
+    return
+  }
   if (url.pathname === '/web-call' || url.pathname === '/phone-ws') {
     handleWebCall(ws)
     return

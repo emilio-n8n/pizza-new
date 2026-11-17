@@ -44,7 +44,7 @@ function Signup() {
     })
 
     if (result.ok) {
-      await navigate({ to: '/onboarding' })
+      await navigate({ to: '/voice-setup' })
       return
     }
 
@@ -109,8 +109,13 @@ function Signup() {
               {error ? <p className="auth-error">{error}</p> : null}
 
               <button className="btn btn-primary btn-block" type="submit" disabled={pending}>
-                {pending ? 'Création du compte…' : 'Créer mon établissement'}
+                {pending ? 'Création du compte…' : 'Créer mon compte'}
               </button>
+
+              <p className="small-note">
+                Vous préférez remplir un formulaire ?{' '}
+                <Link to="/login">Connectez-vous</Link> puis choisissez « configurer à l'écrit ».
+              </p>
 
               <p className="small-note">
                 En créant un compte, vous acceptez les{' '}

@@ -19,6 +19,7 @@ import { Route as StudioRouteImport } from './routes/studio'
 import { Route as TarifsRouteImport } from './routes/tarifs'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedVoiceSetupRouteImport } from './routes/_authenticated/voice-setup'
 import { Route as ApiContactRouteImport } from './routes/api/contact'
 import { Route as LivreurTokenRouteImport } from './routes/livreur.$token'
 import { Route as SuiviTokenRouteImport } from './routes/suivi.$token'
@@ -30,6 +31,7 @@ import { Route as AuthenticatedAppTelephoneRouteImport } from './routes/_authent
 import { Route as ApiAgentDriversRouteImport } from './routes/api/agent/drivers'
 import { Route as ApiAgentLocationRouteImport } from './routes/api/agent/location'
 import { Route as ApiAgentMenuRouteImport } from './routes/api/agent/menu'
+import { Route as ApiAgentOnboardingRouteImport } from './routes/api/agent/onboarding'
 import { Route as ApiAgentOrdersRouteImport } from './routes/api/agent/orders'
 
 const IndexRoute = IndexRouteImport.update({
@@ -79,6 +81,11 @@ const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedVoiceSetupRoute = AuthenticatedVoiceSetupRouteImport.update({
+  id: '/voice-setup',
+  path: '/voice-setup',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const ApiContactRoute = ApiContactRouteImport.update({
@@ -139,6 +146,11 @@ const ApiAgentMenuRoute = ApiAgentMenuRouteImport.update({
   path: '/api/agent/menu',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAgentOnboardingRoute = ApiAgentOnboardingRouteImport.update({
+  id: '/api/agent/onboarding',
+  path: '/api/agent/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAgentOrdersRoute = ApiAgentOrdersRouteImport.update({
   id: '/api/agent/orders',
   path: '/api/agent/orders',
@@ -155,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/tarifs': typeof TarifsRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/voice-setup': typeof AuthenticatedVoiceSetupRoute
   '/api/contact': typeof ApiContactRoute
   '/livreur/$token': typeof LivreurTokenRoute
   '/suivi/$token': typeof SuiviTokenRoute
@@ -165,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/api/agent/drivers': typeof ApiAgentDriversRoute
   '/api/agent/location': typeof ApiAgentLocationRoute
   '/api/agent/menu': typeof ApiAgentMenuRoute
+  '/api/agent/onboarding': typeof ApiAgentOnboardingRoute
   '/api/agent/orders': typeof ApiAgentOrdersRoute
   '/app/': typeof AuthenticatedAppIndexRoute
 }
@@ -177,6 +191,7 @@ export interface FileRoutesByTo {
   '/studio': typeof StudioRoute
   '/tarifs': typeof TarifsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/voice-setup': typeof AuthenticatedVoiceSetupRoute
   '/api/contact': typeof ApiContactRoute
   '/livreur/$token': typeof LivreurTokenRoute
   '/suivi/$token': typeof SuiviTokenRoute
@@ -187,6 +202,7 @@ export interface FileRoutesByTo {
   '/api/agent/drivers': typeof ApiAgentDriversRoute
   '/api/agent/location': typeof ApiAgentLocationRoute
   '/api/agent/menu': typeof ApiAgentMenuRoute
+  '/api/agent/onboarding': typeof ApiAgentOnboardingRoute
   '/api/agent/orders': typeof ApiAgentOrdersRoute
   '/app': typeof AuthenticatedAppIndexRoute
 }
@@ -202,6 +218,7 @@ export interface FileRoutesById {
   '/tarifs': typeof TarifsRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/voice-setup': typeof AuthenticatedVoiceSetupRoute
   '/api/contact': typeof ApiContactRoute
   '/livreur/$token': typeof LivreurTokenRoute
   '/suivi/$token': typeof SuiviTokenRoute
@@ -212,6 +229,7 @@ export interface FileRoutesById {
   '/api/agent/drivers': typeof ApiAgentDriversRoute
   '/api/agent/location': typeof ApiAgentLocationRoute
   '/api/agent/menu': typeof ApiAgentMenuRoute
+  '/api/agent/onboarding': typeof ApiAgentOnboardingRoute
   '/api/agent/orders': typeof ApiAgentOrdersRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
 }
@@ -227,6 +245,7 @@ export interface FileRouteTypes {
     | '/tarifs'
     | '/app'
     | '/onboarding'
+    | '/voice-setup'
     | '/api/contact'
     | '/livreur/$token'
     | '/suivi/$token'
@@ -237,6 +256,7 @@ export interface FileRouteTypes {
     | '/api/agent/drivers'
     | '/api/agent/location'
     | '/api/agent/menu'
+    | '/api/agent/onboarding'
     | '/api/agent/orders'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
@@ -249,6 +269,7 @@ export interface FileRouteTypes {
     | '/studio'
     | '/tarifs'
     | '/onboarding'
+    | '/voice-setup'
     | '/api/contact'
     | '/livreur/$token'
     | '/suivi/$token'
@@ -259,6 +280,7 @@ export interface FileRouteTypes {
     | '/api/agent/drivers'
     | '/api/agent/location'
     | '/api/agent/menu'
+    | '/api/agent/onboarding'
     | '/api/agent/orders'
     | '/app'
   id:
@@ -273,6 +295,7 @@ export interface FileRouteTypes {
     | '/tarifs'
     | '/_authenticated/app'
     | '/_authenticated/onboarding'
+    | '/_authenticated/voice-setup'
     | '/api/contact'
     | '/livreur/$token'
     | '/suivi/$token'
@@ -283,6 +306,7 @@ export interface FileRouteTypes {
     | '/api/agent/drivers'
     | '/api/agent/location'
     | '/api/agent/menu'
+    | '/api/agent/onboarding'
     | '/api/agent/orders'
     | '/_authenticated/app/'
   fileRoutesById: FileRoutesById
@@ -302,6 +326,7 @@ export interface RootRouteChildren {
   ApiAgentDriversRoute: typeof ApiAgentDriversRoute
   ApiAgentLocationRoute: typeof ApiAgentLocationRoute
   ApiAgentMenuRoute: typeof ApiAgentMenuRoute
+  ApiAgentOnboardingRoute: typeof ApiAgentOnboardingRoute
   ApiAgentOrdersRoute: typeof ApiAgentOrdersRoute
 }
 
@@ -375,6 +400,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/voice-setup': {
+      id: '/_authenticated/voice-setup'
+      path: '/voice-setup'
+      fullPath: '/voice-setup'
+      preLoaderRoute: typeof AuthenticatedVoiceSetupRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/api/contact': {
@@ -454,6 +486,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentMenuRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/agent/onboarding': {
+      id: '/api/agent/onboarding'
+      path: '/api/agent/onboarding'
+      fullPath: '/api/agent/onboarding'
+      preLoaderRoute: typeof ApiAgentOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/agent/orders': {
       id: '/api/agent/orders'
       path: '/api/agent/orders'
@@ -486,11 +525,13 @@ const AuthenticatedAppRouteWithChildren =
 interface AuthenticatedRouteChildren {
   AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedVoiceSetupRoute: typeof AuthenticatedVoiceSetupRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedVoiceSetupRoute: AuthenticatedVoiceSetupRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -512,6 +553,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAgentDriversRoute: ApiAgentDriversRoute,
   ApiAgentLocationRoute: ApiAgentLocationRoute,
   ApiAgentMenuRoute: ApiAgentMenuRoute,
+  ApiAgentOnboardingRoute: ApiAgentOnboardingRoute,
   ApiAgentOrdersRoute: ApiAgentOrdersRoute,
 }
 export const routeTree = rootRouteImport

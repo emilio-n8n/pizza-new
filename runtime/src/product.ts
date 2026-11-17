@@ -7,7 +7,7 @@ export type ProductOrderResult = {
   totalCents: number
 }
 
-export async function getLocation(): Promise<{
+export async function getLocation(sessionId = ''): Promise<{
   name: string
   address: string
   postalCode: string
@@ -26,7 +26,10 @@ export async function getLocation(): Promise<{
   if (!config.agentApiKey) return null
   try {
     const response = await fetch(`${config.productApiUrl}/api/agent/location`, {
-      headers: { 'x-agent-key': config.agentApiKey },
+      headers: {
+        'x-agent-key': config.agentApiKey,
+        ...(sessionId ? { 'x-onboarding-session': sessionId } : {}),
+      },
       signal: AbortSignal.timeout(5000),
     })
     if (!response.ok) return null
@@ -38,13 +41,16 @@ export async function getLocation(): Promise<{
   }
 }
 
-export async function getMenu(): Promise<
+export async function getMenu(sessionId = ''): Promise<
   Array<{ name: string; category: string; description: string; priceCents: number; priceEuros: string }>
 > {
   if (!config.agentApiKey) return []
   try {
     const response = await fetch(`${config.productApiUrl}/api/agent/menu`, {
-      headers: { 'x-agent-key': config.agentApiKey },
+      headers: {
+        'x-agent-key': config.agentApiKey,
+        ...(sessionId ? { 'x-onboarding-session': sessionId } : {}),
+      },
       signal: AbortSignal.timeout(5000),
     })
     if (!response.ok) return []
@@ -56,11 +62,14 @@ export async function getMenu(): Promise<
   }
 }
 
-export async function getDrivers(): Promise<Array<{ name: string; active: boolean }>> {
+export async function getDrivers(sessionId = ''): Promise<Array<{ name: string; active: boolean }>> {
   if (!config.agentApiKey) return []
   try {
     const response = await fetch(`${config.productApiUrl}/api/agent/drivers`, {
-      headers: { 'x-agent-key': config.agentApiKey },
+      headers: {
+        'x-agent-key': config.agentApiKey,
+        ...(sessionId ? { 'x-onboarding-session': sessionId } : {}),
+      },
       signal: AbortSignal.timeout(5000),
     })
     if (!response.ok) return []
@@ -109,5 +118,57 @@ export async function createProductOrder(input: {
   } catch (error) {
     console.error('[order] échec', error)
     return null
+  }
+}
+
+export type OnboardingPayload = {
+  establishment: {
+    name: string
+    address?: string
+    postalCode?: string
+    city?: string
+    cuisine?: string
+    phone?: string
+  }
+  menu: Array<{ name: string; category?: string; priceCents?: number; price?: string; description?: string }>
+  hours?: Array<{ day: number; closed: boolean; open: string; close: string }>
+  delivery?: {
+    enabled?: boolean
+    feeCents?: number
+    minOrderCents?: number
+    radiusKm?: number
+    postalCodes?: string
+  }
+}
+
+export async function saveOnboarding(
+  sessionId: string,
+  payload: OnboardingPayload,
+): Promise<{ ok: boolean; message?: string }> {
+  if (!config.agentApiKey) return { ok: false, message: 'AGENT_API_KEY absent' }
+  try {
+    const response = await fetch(`${config.productApiUrl}/api/agent/onboarding`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-agent-key': config.agentApiKey,
+        'x-onboarding-session': sessionId,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
+    })
+    const body = (await response.json().catch(() => ({}))) as {
+      ok?: boolean
+      message?: string
+      error?: string
+    }
+    if (!response.ok || !body.ok) {
+      console.error('[onboarding] refusé', response.status, body)
+      return { ok: false, message: body.message ?? body.error ?? 'refusé' }
+    }
+    return { ok: true }
+  } catch (error) {
+    console.error('[onboarding] échec', error)
+    return { ok: false, message: 'réseau' }
   }
 }

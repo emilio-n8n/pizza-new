@@ -236,7 +236,7 @@ function WebPhone() {
       }
 
       ws.onerror = () => {
-        setError('Connexion au runtime impossible. Vérifiez VITE_RUNTIME_WS_URL.')
+        setError(`Connexion au runtime impossible sur ${url}. Vérifiez que le proxy et le runtime tournent, et que l'URL est en wss en HTTPS.`)
         setStatus('idle')
       }
 

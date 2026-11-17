@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
 import type {
@@ -48,9 +48,18 @@ const emptyDatabase = (): Database => ({
 })
 
 let cache: Database | null = null
+let cacheMtimeMs = 0
 
+/**
+ * En développement, le fichier de données peut être modifié par un autre
+ * processus (script de test, migration). On recharge donc dès que le mtime
+ * change : sans cela, un cache figé au premier chargement ignore les lignes
+ * ajoutées après coup et répond « utilisateur inconnu » à tort.
+ */
 function load(): Database {
-  if (cache) return cache
+  const mtime = existsSync(DATA_FILE) ? statSync(DATA_FILE).mtimeMs : 0
+  if (cache && mtime === cacheMtimeMs) return cache
+  cacheMtimeMs = mtime
   if (!existsSync(DATA_FILE)) {
     cache = emptyDatabase()
     return cache
@@ -76,6 +85,7 @@ function persist(database: Database) {
   const temporary = `${DATA_FILE}.tmp`
   writeFileSync(temporary, JSON.stringify(database, null, 2), 'utf8')
   renameSync(temporary, DATA_FILE)
+  cacheMtimeMs = statSync(DATA_FILE).mtimeMs
 }
 
 // --- Users -----------------------------------------------------------------
