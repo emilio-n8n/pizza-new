@@ -20,3 +20,6 @@ runtime/data/tenants/*/audio/*.ulaw
 # Transcriptions d appels et donnees locales
 runtime/data/transcripts/
 runtime/data/dynamic/
+
+# sortie de build Vercel
+.vercel
