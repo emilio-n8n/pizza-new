@@ -1,4 +1,4 @@
-import { Link, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { Link, createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { Brand } from '#/components/brand'
@@ -18,7 +18,6 @@ export const Route = createFileRoute('/login')({
 })
 
 function Login() {
-  const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -44,8 +43,8 @@ function Login() {
       return
     }
 
-    const session = await getSessionFn()
-    await navigate({ to: session?.location?.status === 'active' ? '/app' : '/onboarding' })
+    // Navigation dure : même raison que pour l'inscription.
+    window.location.href = '/app'
   }
 
   return (

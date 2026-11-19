@@ -1,4 +1,4 @@
-import { Link, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { Link, createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { Brand } from '#/components/brand'
@@ -18,14 +18,13 @@ export const Route = createFileRoute('/signup')({
   beforeLoad: async () => {
     const session = await getSessionFn()
     if (session) {
-      throw redirect({ to: session.location?.status === 'active' ? '/app' : '/onboarding' })
+      throw redirect({ to: session.location?.status === 'active' ? '/app' : '/voice-setup' })
     }
   },
   component: Signup,
 })
 
 function Signup() {
-  const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -47,7 +46,9 @@ function Signup() {
     const result = (await response.json()) as { ok: boolean; error?: string }
 
     if (result.ok) {
-      await navigate({ to: '/voice-setup' })
+      // Navigation dure : le cookie vient d'être posé, un routage client
+      // réutiliserait le contexte de session chargé avant l'inscription.
+      window.location.href = '/voice-setup'
       return
     }
 
