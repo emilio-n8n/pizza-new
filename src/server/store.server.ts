@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import type {
+  DayHours,
+  DeliverySettings,
   Driver,
   Location,
   MenuItem,
@@ -12,6 +14,17 @@ import type {
   OrderStatus,
 } from '#/lib/types'
 import { defaultDelivery, defaultHours } from '#/lib/defaults'
+
+/**
+ * Accès aux données via Supabase (Postgres).
+ *
+ * Toutes les fonctions sont asynchrones : elles étaient synchrones quand les
+ * données vivaient dans un fichier JSON en mémoire. Les appelants doivent donc
+ * les attendre.
+ *
+ * Le client utilise la clé service_role : il contourne RLS, ce qui est voulu —
+ * il ne vit que côté serveur, jamais dans un bundle navigateur.
+ */
 
 const TEST_NUMBER = process.env.PV_TEST_NUMBER ?? '01 89 71 33 56'
 
@@ -29,190 +42,341 @@ export type StoredSession = {
   expiresAt: string
 }
 
-type Database = {
-  users: StoredUser[]
-  locations: Location[]
-  sessions: StoredSession[]
-  orders: Order[]
-  drivers: Driver[]
+export type LocationWithOwner = Location & { userId: string }
+
+let client: SupabaseClient | null = null
+
+function db(): SupabaseClient {
+  if (client) return client
+  const url = process.env.SUPABASE_URL ?? ''
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY ?? ''
+  if (!url || !key) {
+    throw new Error('SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY sont requis (voir .env).')
+  }
+  client = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  return client
 }
 
-const DATA_FILE = resolve(process.env.PV_DATA_FILE ?? '.data/db.json')
+function fail(scope: string, error: unknown) {
+  console.error(`[store] ${scope}`, error)
+}
 
-const emptyDatabase = (): Database => ({
-  users: [],
-  locations: [],
-  sessions: [],
-  orders: [],
-  drivers: [],
+// ------------------------------------------------------------------ mappers
+
+type UserRow = {
+  id: string
+  email: string
+  name: string
+  password_hash: string
+  created_at: string
+}
+
+type LocationRow = {
+  id: string
+  user_id: string
+  name: string
+  address: string
+  postal_code: string
+  city: string
+  cuisine: string
+  phone: string
+  menu: MenuItem[] | null
+  hours: DayHours[] | null
+  delivery: DeliverySettings | null
+  status: 'draft' | 'active'
+  test_number: string
+  twilio_number: string
+  onboarding_step: number
+  created_at: string
+}
+
+type OrderRow = {
+  id: string
+  location_id: string
+  reference: string
+  token: string
+  customer_name: string
+  phone: string
+  address: string
+  mode: OrderMode
+  lines: OrderLine[] | null
+  subtotal_cents: number
+  delivery_fee_cents: number
+  total_cents: number
+  status: OrderStatus
+  driver_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+type DriverRow = {
+  id: string
+  location_id: string
+  name: string
+  phone: string
+  token: string
+  active: boolean
+  created_at: string
+}
+
+function rowToUser(row: UserRow): StoredUser {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    passwordHash: row.password_hash,
+    createdAt: row.created_at,
+  }
+}
+
+const toLocation = (row: LocationRow): LocationWithOwner => ({
+  id: row.id,
+  userId: row.user_id,
+  name: row.name,
+  address: row.address,
+  postalCode: row.postal_code,
+  city: row.city,
+  cuisine: row.cuisine,
+  phone: row.phone,
+  menu: row.menu ?? [],
+  hours: row.hours?.length ? row.hours : defaultHours(),
+  delivery: row.delivery ?? defaultDelivery(),
+  status: row.status,
+  testNumber: row.test_number || TEST_NUMBER,
+  twilioNumber: row.twilio_number,
+  onboardingStep: row.onboarding_step,
+  createdAt: row.created_at,
 })
 
-let cache: Database | null = null
-let cacheMtimeMs = 0
+const toOrder = (row: OrderRow): Order => ({
+  id: row.id,
+  locationId: row.location_id,
+  reference: row.reference,
+  token: row.token,
+  customerName: row.customer_name,
+  phone: row.phone,
+  address: row.address,
+  mode: row.mode,
+  lines: row.lines ?? [],
+  subtotalCents: row.subtotal_cents,
+  deliveryFeeCents: row.delivery_fee_cents,
+  totalCents: row.total_cents,
+  status: row.status,
+  driverId: row.driver_id,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+})
 
-/**
- * En développement, le fichier de données peut être modifié par un autre
- * processus (script de test, migration). On recharge donc dès que le mtime
- * change : sans cela, un cache figé au premier chargement ignore les lignes
- * ajoutées après coup et répond « utilisateur inconnu » à tort.
- */
-function load(): Database {
-  const mtime = existsSync(DATA_FILE) ? statSync(DATA_FILE).mtimeMs : 0
-  if (cache && mtime === cacheMtimeMs) return cache
-  cacheMtimeMs = mtime
-  if (!existsSync(DATA_FILE)) {
-    cache = emptyDatabase()
-    return cache
+const toDriver = (row: DriverRow): Driver => ({
+  id: row.id,
+  locationId: row.location_id,
+  name: row.name,
+  phone: row.phone,
+  token: row.token,
+  active: row.active,
+  createdAt: row.created_at,
+})
+
+// -------------------------------------------------------------------- users
+
+export async function findUserByEmail(email: string): Promise<StoredUser | null> {
+  const { data, error } = await db()
+    .from('pv_users')
+    .select('*')
+    .eq('email', email.trim().toLowerCase())
+    .maybeSingle<UserRow>()
+  if (error) {
+    fail('findUserByEmail', error)
+    return null
   }
-  try {
-    const parsed = JSON.parse(readFileSync(DATA_FILE, 'utf8')) as Partial<Database>
-    cache = {
-      users: parsed.users ?? [],
-      locations: parsed.locations ?? [],
-      sessions: parsed.sessions ?? [],
-      orders: parsed.orders ?? [],
-      drivers: parsed.drivers ?? [],
-    }
-  } catch {
-    cache = emptyDatabase()
+  return data ? rowToUser(data) : null
+}
+
+export async function findUserById(id: string): Promise<StoredUser | null> {
+  const { data, error } = await db()
+    .from('pv_users')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle<UserRow>()
+  if (error) {
+    fail('findUserById', error)
+    return null
   }
-  return cache
+  return data ? rowToUser(data) : null
 }
 
-function persist(database: Database) {
-  cache = database
-  mkdirSync(dirname(DATA_FILE), { recursive: true })
-  const temporary = `${DATA_FILE}.tmp`
-  writeFileSync(temporary, JSON.stringify(database, null, 2), 'utf8')
-  renameSync(temporary, DATA_FILE)
-  cacheMtimeMs = statSync(DATA_FILE).mtimeMs
-}
-
-// --- Users -----------------------------------------------------------------
-
-export function findUserByEmail(email: string) {
-  return load().users.find((user) => user.email === email.trim().toLowerCase())
-}
-
-export function findUserById(id: string) {
-  return load().users.find((user) => user.id === id)
-}
-
-export function createUser(input: {
+export async function createUser(input: {
   email: string
   name: string
   passwordHash: string
-}): StoredUser {
-  const database = load()
-  const user: StoredUser = {
-    id: randomUUID(),
-    email: input.email.trim().toLowerCase(),
-    name: input.name.trim(),
-    passwordHash: input.passwordHash,
-    createdAt: new Date().toISOString(),
+}): Promise<StoredUser> {
+  const { data, error } = await db()
+    .from('pv_users')
+    .insert({
+      email: input.email.trim().toLowerCase(),
+      name: input.name.trim(),
+      password_hash: input.passwordHash,
+    })
+    .select('*')
+    .single<UserRow>()
+  if (error || !data) {
+    fail('createUser', error)
+    throw error ?? new Error('createUser failed')
   }
-  database.users.push(user)
-  persist(database)
-  return user
+  return rowToUser(data)
 }
 
-// --- Sessions --------------------------------------------------------------
+// ----------------------------------------------------------------- sessions
 
-export function createSession(userId: string, days = 30): StoredSession {
-  const database = load()
-  const session: StoredSession = {
-    id: randomUUID(),
-    userId,
-    expiresAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
+export async function createSession(userId: string, days = 30): Promise<StoredSession> {
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+  const { data, error } = await db()
+    .from('pv_sessions')
+    .insert({ user_id: userId, expires_at: expiresAt })
+    .select('id, user_id, expires_at')
+    .single<{ id: string; user_id: string; expires_at: string }>()
+  if (error || !data) {
+    fail('createSession', error)
+    throw error ?? new Error('createSession failed')
   }
-  database.sessions = database.sessions.filter(
-    (item) => new Date(item.expiresAt).getTime() > Date.now(),
-  )
-  database.sessions.push(session)
-  persist(database)
-  return session
+  return { id: data.id, userId: data.user_id, expiresAt: data.expires_at }
 }
 
-export function findSession(id: string | undefined): StoredSession | null {
+export async function findSession(id: string | undefined): Promise<StoredSession | null> {
   if (!id) return null
-  const session = load().sessions.find((item) => item.id === id)
-  if (!session) return null
-  if (new Date(session.expiresAt).getTime() <= Date.now()) return null
-  return session
+  const { data, error } = await db()
+    .from('pv_sessions')
+    .select('id, user_id, expires_at')
+    .eq('id', id)
+    .maybeSingle<{ id: string; user_id: string; expires_at: string }>()
+  if (error) {
+    fail('findSession', error)
+    return null
+  }
+  if (!data) return null
+  if (new Date(data.expires_at).getTime() <= Date.now()) return null
+  return { id: data.id, userId: data.user_id, expiresAt: data.expires_at }
 }
 
-export function deleteSession(id: string) {
-  const database = load()
-  database.sessions = database.sessions.filter((session) => session.id !== id)
-  persist(database)
+export async function deleteSession(id: string): Promise<void> {
+  const { error } = await db().from('pv_sessions').delete().eq('id', id)
+  if (error) fail('deleteSession', error)
 }
 
-// --- Locations -------------------------------------------------------------
+// ---------------------------------------------------------------- locations
 
-export function findLocationByUser(userId: string): Location | null {
-  return (
-    load().locations.find(
-      (location) => (location as Location & { userId: string }).userId === userId,
-    ) ?? null
-  )
+export async function findLocationByUser(
+  userId: string,
+): Promise<LocationWithOwner | null> {
+  const { data, error } = await db()
+    .from('pv_locations')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle<LocationRow>()
+  if (error) {
+    fail('findLocationByUser', error)
+    return null
+  }
+  return data ? toLocation(data) : null
 }
 
-export function findLocationById(id: string): Location | null {
-  return load().locations.find((location) => location.id === id) ?? null
+export async function findLocationById(id: string): Promise<LocationWithOwner | null> {
+  const { data, error } = await db()
+    .from('pv_locations')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle<LocationRow>()
+  if (error) {
+    fail('findLocationById', error)
+    return null
+  }
+  return data ? toLocation(data) : null
 }
 
-type LocationWithOwner = Location & { userId: string }
-
-export function listLocations(): LocationWithOwner[] {
-  return load().locations as LocationWithOwner[]
+export async function listLocations(): Promise<LocationWithOwner[]> {
+  const { data, error } = await db().from('pv_locations').select('*')
+  if (error) {
+    fail('listLocations', error)
+    return []
+  }
+  return (data ?? []).map((row) => toLocation(row as LocationRow))
 }
 
-export function upsertLocation(
+export async function upsertLocation(
   userId: string,
   patch: Partial<Omit<Location, 'id'>>,
-): Location {
-  const database = load()
-  const existing = database.locations.find(
-    (location) => (location as LocationWithOwner).userId === userId,
-  )
+): Promise<LocationWithOwner> {
+  const existing = await findLocationByUser(userId)
+
+  const row: Record<string, unknown> = {}
+  if (patch.name !== undefined) row.name = patch.name
+  if (patch.address !== undefined) row.address = patch.address
+  if (patch.postalCode !== undefined) row.postal_code = patch.postalCode
+  if (patch.city !== undefined) row.city = patch.city
+  if (patch.cuisine !== undefined) row.cuisine = patch.cuisine
+  if (patch.phone !== undefined) row.phone = patch.phone
+  if (patch.menu !== undefined) row.menu = patch.menu
+  if (patch.hours !== undefined) row.hours = patch.hours
+  if (patch.delivery !== undefined) row.delivery = patch.delivery
+  if (patch.status !== undefined) row.status = patch.status
+  if (patch.twilioNumber !== undefined) row.twilio_number = patch.twilioNumber
+  if (patch.onboardingStep !== undefined) row.onboarding_step = patch.onboardingStep
 
   if (existing) {
-    Object.assign(existing, patch)
-    persist(database)
-    return existing
+    const { data, error } = await db()
+      .from('pv_locations')
+      .update(row)
+      .eq('id', existing.id)
+      .select('*')
+      .single<LocationRow>()
+    if (error || !data) {
+      fail('upsertLocation.update', error)
+      throw error ?? new Error('upsertLocation failed')
+    }
+    return toLocation(data)
   }
 
-  const location = {
-    id: randomUUID(),
-    userId,
-    name: '',
-    address: '',
-    postalCode: '',
-    city: '',
-    cuisine: 'Italienne',
-    phone: '',
-    menu: [],
-    hours: defaultHours(),
-    delivery: defaultDelivery(),
-    status: 'draft',
-    testNumber: TEST_NUMBER,
-    twilioNumber: '',
-    onboardingStep: 1,
-    createdAt: new Date().toISOString(),
-    ...patch,
-  } as LocationWithOwner
-
-  database.locations.push(location)
-  persist(database)
-  return location
+  const { data, error } = await db()
+    .from('pv_locations')
+    .insert({
+      user_id: userId,
+      name: '',
+      address: '',
+      postal_code: '',
+      city: '',
+      cuisine: 'Italienne',
+      phone: '',
+      menu: [],
+      hours: defaultHours(),
+      delivery: defaultDelivery(),
+      status: 'draft',
+      test_number: TEST_NUMBER,
+      twilio_number: '',
+      onboarding_step: 1,
+      ...row,
+    })
+    .select('*')
+    .single<LocationRow>()
+  if (error || !data) {
+    fail('upsertLocation.insert', error)
+    throw error ?? new Error('upsertLocation failed')
+  }
+  return toLocation(data)
 }
 
-export function setMenu(userId: string, menu: MenuItem[]) {
+export async function setMenu(userId: string, menu: MenuItem[]) {
   return upsertLocation(userId, { menu })
 }
 
-export function updateMenuItem(userId: string, itemId: string, patch: Partial<MenuItem>) {
-  const location = findLocationByUser(userId)
+export async function updateMenuItem(
+  userId: string,
+  itemId: string,
+  patch: Partial<MenuItem>,
+) {
+  const location = await findLocationByUser(userId)
   if (!location) return null
   const menu = location.menu.map((item) =>
     item.id === itemId ? { ...item, ...patch, id: item.id } : item,
@@ -220,43 +384,75 @@ export function updateMenuItem(userId: string, itemId: string, patch: Partial<Me
   return upsertLocation(userId, { menu })
 }
 
-export function removeMenuItem(userId: string, itemId: string) {
-  const location = findLocationByUser(userId)
+export async function removeMenuItem(userId: string, itemId: string) {
+  const location = await findLocationByUser(userId)
   if (!location) return null
   return upsertLocation(userId, {
     menu: location.menu.filter((item) => item.id !== itemId),
   })
 }
 
-export function activateLocation(userId: string) {
+export async function activateLocation(userId: string) {
   return upsertLocation(userId, { status: 'active', onboardingStep: 5 })
 }
 
-// --- Orders ----------------------------------------------------------------
+// ------------------------------------------------------------------- orders
 
-export function listOrders(userId: string) {
-  const location = findLocationByUser(userId)
+export async function listOrders(userId: string): Promise<Order[]> {
+  const location = await findLocationByUser(userId)
   if (!location) return []
-  return load()
-    .orders.filter((order) => order.locationId === location.id)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  const { data, error } = await db()
+    .from('pv_orders')
+    .select('*')
+    .eq('location_id', location.id)
+    .order('created_at', { ascending: false })
+  if (error) {
+    fail('listOrders', error)
+    return []
+  }
+  return (data ?? []).map((row) => toOrder(row as OrderRow))
 }
 
-export function listOrdersForLocation(locationId: string) {
-  return load()
-    .orders.filter((order) => order.locationId === locationId)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+export async function listOrdersForLocation(locationId: string): Promise<Order[]> {
+  const { data, error } = await db()
+    .from('pv_orders')
+    .select('*')
+    .eq('location_id', locationId)
+    .order('created_at', { ascending: false })
+  if (error) {
+    fail('listOrdersForLocation', error)
+    return []
+  }
+  return (data ?? []).map((row) => toOrder(row as OrderRow))
 }
 
-export function getOrderByToken(token: string) {
-  return load().orders.find((order) => order.token === token) ?? null
+export async function getOrderByToken(token: string): Promise<Order | null> {
+  const { data, error } = await db()
+    .from('pv_orders')
+    .select('*')
+    .eq('token', token)
+    .maybeSingle<OrderRow>()
+  if (error) {
+    fail('getOrderByToken', error)
+    return null
+  }
+  return data ? toOrder(data) : null
 }
 
-export function getOrderById(id: string) {
-  return load().orders.find((order) => order.id === id) ?? null
+export async function getOrderById(id: string): Promise<Order | null> {
+  const { data, error } = await db()
+    .from('pv_orders')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle<OrderRow>()
+  if (error) {
+    fail('getOrderById', error)
+    return null
+  }
+  return data ? toOrder(data) : null
 }
 
-export function createOrder(input: {
+export async function createOrder(input: {
   locationId: string
   customerName?: string
   phone: string
@@ -264,94 +460,118 @@ export function createOrder(input: {
   mode: OrderMode
   lines: OrderLine[]
   deliveryFeeCents?: number
-}) {
-  const database = load()
+}): Promise<Order> {
   const subtotalCents = input.lines.reduce(
     (sum, line) => sum + line.priceCents * line.quantity,
     0,
   )
-  const deliveryFeeCents =
-    input.mode === 'delivery' ? (input.deliveryFeeCents ?? 0) : 0
-  const now = new Date().toISOString()
+  const deliveryFeeCents = input.mode === 'delivery' ? (input.deliveryFeeCents ?? 0) : 0
 
-  const order: Order = {
-    id: randomUUID(),
-    locationId: input.locationId,
-    reference: `PV-${Date.now().toString().slice(-5)}`,
-    token: randomUUID().replace(/-/g, ''),
-    customerName: input.customerName ?? '',
-    phone: input.phone,
-    address: input.address,
-    mode: input.mode,
-    lines: input.lines,
-    subtotalCents,
-    deliveryFeeCents,
-    totalCents: subtotalCents + deliveryFeeCents,
-    status: 'new',
-    driverId: null,
-    createdAt: now,
-    updatedAt: now,
+  const { data, error } = await db()
+    .from('pv_orders')
+    .insert({
+      location_id: input.locationId,
+      reference: `PV-${Date.now().toString().slice(-5)}`,
+      token: randomUUID().replace(/-/g, ''),
+      customer_name: input.customerName ?? '',
+      phone: input.phone,
+      address: input.address,
+      mode: input.mode,
+      lines: input.lines,
+      subtotal_cents: subtotalCents,
+      delivery_fee_cents: deliveryFeeCents,
+      total_cents: subtotalCents + deliveryFeeCents,
+      status: 'new',
+    })
+    .select('*')
+    .single<OrderRow>()
+  if (error || !data) {
+    fail('createOrder', error)
+    throw error ?? new Error('createOrder failed')
   }
-
-  database.orders.push(order)
-  persist(database)
-  return order
+  return toOrder(data)
 }
 
-export function updateOrderStatus(orderId: string, status: OrderStatus) {
-  const database = load()
-  const order = database.orders.find((item) => item.id === orderId)
-  if (!order) return null
-  order.status = status
-  order.updatedAt = new Date().toISOString()
-  persist(database)
-  return order
+export async function updateOrderStatus(orderId: string, status: OrderStatus) {
+  const { data, error } = await db()
+    .from('pv_orders')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', orderId)
+    .select('*')
+    .maybeSingle<OrderRow>()
+  if (error) {
+    fail('updateOrderStatus', error)
+    return null
+  }
+  return data ? toOrder(data) : null
 }
 
-// --- Drivers ---------------------------------------------------------------
+// ------------------------------------------------------------------ drivers
 
-export function createDriver(input: {
+export async function createDriver(input: {
   locationId: string
   name: string
   phone: string
-}) {
-  const database = load()
-  const driver: Driver = {
-    id: randomUUID(),
-    locationId: input.locationId,
-    name: input.name.trim(),
-    phone: input.phone.trim(),
-    token: randomUUID().replace(/-/g, ''),
-    active: true,
-    createdAt: new Date().toISOString(),
+}): Promise<Driver> {
+  const { data, error } = await db()
+    .from('pv_drivers')
+    .insert({
+      location_id: input.locationId,
+      name: input.name.trim(),
+      phone: input.phone.trim(),
+      token: randomUUID().replace(/-/g, ''),
+      active: true,
+    })
+    .select('*')
+    .single<DriverRow>()
+  if (error || !data) {
+    fail('createDriver', error)
+    throw error ?? new Error('createDriver failed')
   }
-  database.drivers.push(driver)
-  persist(database)
-  return driver
+  return toDriver(data)
 }
 
-export function listDrivers(locationId: string) {
-  return load().drivers.filter((driver) => driver.locationId === locationId)
+export async function listDrivers(locationId: string): Promise<Driver[]> {
+  const { data, error } = await db()
+    .from('pv_drivers')
+    .select('*')
+    .eq('location_id', locationId)
+  if (error) {
+    fail('listDrivers', error)
+    return []
+  }
+  return (data ?? []).map((row) => toDriver(row as DriverRow))
 }
 
-export function findDriverByToken(token: string) {
-  return load().drivers.find((driver) => driver.token === token) ?? null
+export async function findDriverByToken(token: string): Promise<Driver | null> {
+  const { data, error } = await db()
+    .from('pv_drivers')
+    .select('*')
+    .eq('token', token)
+    .maybeSingle<DriverRow>()
+  if (error) {
+    fail('findDriverByToken', error)
+    return null
+  }
+  return data ? toDriver(data) : null
 }
 
-export function setDriverActive(driverId: string, active: boolean) {
-  const database = load()
-  const driver = database.drivers.find((item) => item.id === driverId)
-  if (!driver) return null
-  driver.active = active
-  persist(database)
-  return driver
+export async function setDriverActive(driverId: string, active: boolean) {
+  const { data, error } = await db()
+    .from('pv_drivers')
+    .update({ active })
+    .eq('id', driverId)
+    .select('*')
+    .maybeSingle<DriverRow>()
+  if (error) {
+    fail('setDriverActive', error)
+    return null
+  }
+  return data ? toDriver(data) : null
 }
 
-export function driverOrders(driver: Driver) {
-  const orders = load()
-    .orders.filter((order) => order.locationId === driver.locationId)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-
+export async function driverOrders(driver: Driver) {
+  const orders = await listOrdersForLocation(driver.locationId)
   return {
     available: orders.filter(
       (order) => order.status === 'ready' && order.mode === 'delivery',
@@ -365,35 +585,53 @@ export function driverOrders(driver: Driver) {
   }
 }
 
-export function takeOrder(driverToken: string, orderId: string) {
-  const driver = findDriverByToken(driverToken)
+export async function takeOrder(driverToken: string, orderId: string) {
+  const driver = await findDriverByToken(driverToken)
   if (!driver || !driver.active) return null
 
-  const database = load()
-  const order = database.orders.find((item) => item.id === orderId)
+  const order = await getOrderById(orderId)
   if (!order) return null
   if (order.locationId !== driver.locationId) return null
   if (order.status !== 'ready') return null
 
-  order.status = 'delivering'
-  order.driverId = driver.id
-  order.updatedAt = new Date().toISOString()
-  persist(database)
-  return order
+  const { data, error } = await db()
+    .from('pv_orders')
+    .update({
+      status: 'delivering',
+      driver_id: driver.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', orderId)
+    .eq('status', 'ready')
+    .select('*')
+    .maybeSingle<OrderRow>()
+  if (error) {
+    fail('takeOrder', error)
+    return null
+  }
+  return data ? toOrder(data) : null
 }
 
-export function completeOrder(driverToken: string, orderId: string) {
-  const driver = findDriverByToken(driverToken)
+export async function completeOrder(driverToken: string, orderId: string) {
+  const driver = await findDriverByToken(driverToken)
   if (!driver) return null
 
-  const database = load()
-  const order = database.orders.find((item) => item.id === orderId)
+  const order = await getOrderById(orderId)
   if (!order) return null
   if (order.driverId !== driver.id) return null
   if (order.status !== 'delivering') return null
 
-  order.status = 'delivered'
-  order.updatedAt = new Date().toISOString()
-  persist(database)
-  return order
+  const { data, error } = await db()
+    .from('pv_orders')
+    .update({ status: 'delivered', updated_at: new Date().toISOString() })
+    .eq('id', orderId)
+    .eq('driver_id', driver.id)
+    .eq('status', 'delivering')
+    .select('*')
+    .maybeSingle<OrderRow>()
+  if (error) {
+    fail('completeOrder', error)
+    return null
+  }
+  return data ? toOrder(data) : null
 }

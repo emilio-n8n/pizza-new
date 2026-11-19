@@ -54,9 +54,9 @@ export const Route = createFileRoute('/api/agent/orders')({
           return Response.json({ ok: false, error: 'invalid_json' }, { status: 400 })
         }
 
-        const locations = listLocations()
+        const locations = await listLocations()
         let location =
-          (payload.locationId && findLocationById(payload.locationId)) || null
+          (payload.locationId && await findLocationById(payload.locationId)) || null
 
         if (!location && payload.tenant) {
           const tenant = payload.tenant.replace(/\D/g, '')
@@ -122,7 +122,7 @@ export const Route = createFileRoute('/api/agent/orders')({
             ? location.delivery.feeCents
             : 0
 
-        const order = createOrder({
+        const order = await createOrder({
           locationId: location.id,
           customerName: payload.customerName ?? '',
           phone: payload.phone,

@@ -74,7 +74,7 @@ export const Route = createFileRoute('/api/agent/onboarding')({
 
         // Le runtime transmet l'id de session pour qu'on sache de quel compte il parle.
         const userId = clean(request.headers.get(SESSION_FILE_HEADER), 64)
-        const user = userId ? findUserById(userId) : null
+        const user = userId ? await findUserById(userId) : null
         if (!user) {
           return Response.json({ ok: false, error: 'unknown_user' }, { status: 404 })
         }
@@ -153,7 +153,7 @@ export const Route = createFileRoute('/api/agent/onboarding')({
           postalCodes: clean(deliveryIn.postalCodes, 200),
         }
 
-        const location = upsertLocation(user.id, {
+        const location = await upsertLocation(user.id, {
           name,
           address: clean(est.address, 160),
           postalCode: clean(est.postalCode, 10),

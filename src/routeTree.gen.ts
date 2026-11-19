@@ -33,6 +33,9 @@ import { Route as ApiAgentLocationRouteImport } from './routes/api/agent/locatio
 import { Route as ApiAgentMenuRouteImport } from './routes/api/agent/menu'
 import { Route as ApiAgentOnboardingRouteImport } from './routes/api/agent/onboarding'
 import { Route as ApiAgentOrdersRouteImport } from './routes/api/agent/orders'
+import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
+import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
+import { Route as ApiAuthSignupRouteImport } from './routes/api/auth/signup'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -156,6 +159,21 @@ const ApiAgentOrdersRoute = ApiAgentOrdersRouteImport.update({
   path: '/api/agent/orders',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
+  id: '/api/auth/login',
+  path: '/api/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
+  id: '/api/auth/logout',
+  path: '/api/auth/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthSignupRoute = ApiAuthSignupRouteImport.update({
+  id: '/api/auth/signup',
+  path: '/api/auth/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -180,6 +198,9 @@ export interface FileRoutesByFullPath {
   '/api/agent/menu': typeof ApiAgentMenuRoute
   '/api/agent/onboarding': typeof ApiAgentOnboardingRoute
   '/api/agent/orders': typeof ApiAgentOrdersRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/signup': typeof ApiAuthSignupRoute
   '/app/': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRoutesByTo {
@@ -204,6 +225,9 @@ export interface FileRoutesByTo {
   '/api/agent/menu': typeof ApiAgentMenuRoute
   '/api/agent/onboarding': typeof ApiAgentOnboardingRoute
   '/api/agent/orders': typeof ApiAgentOrdersRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/signup': typeof ApiAuthSignupRoute
   '/app': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRoutesById {
@@ -231,6 +255,9 @@ export interface FileRoutesById {
   '/api/agent/menu': typeof ApiAgentMenuRoute
   '/api/agent/onboarding': typeof ApiAgentOnboardingRoute
   '/api/agent/orders': typeof ApiAgentOrdersRoute
+  '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/signup': typeof ApiAuthSignupRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRouteTypes {
@@ -258,6 +285,9 @@ export interface FileRouteTypes {
     | '/api/agent/menu'
     | '/api/agent/onboarding'
     | '/api/agent/orders'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/signup'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -282,6 +312,9 @@ export interface FileRouteTypes {
     | '/api/agent/menu'
     | '/api/agent/onboarding'
     | '/api/agent/orders'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/signup'
     | '/app'
   id:
     | '__root__'
@@ -308,6 +341,9 @@ export interface FileRouteTypes {
     | '/api/agent/menu'
     | '/api/agent/onboarding'
     | '/api/agent/orders'
+    | '/api/auth/login'
+    | '/api/auth/logout'
+    | '/api/auth/signup'
     | '/_authenticated/app/'
   fileRoutesById: FileRoutesById
 }
@@ -328,6 +364,9 @@ export interface RootRouteChildren {
   ApiAgentMenuRoute: typeof ApiAgentMenuRoute
   ApiAgentOnboardingRoute: typeof ApiAgentOnboardingRoute
   ApiAgentOrdersRoute: typeof ApiAgentOrdersRoute
+  ApiAuthLoginRoute: typeof ApiAuthLoginRoute
+  ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
+  ApiAuthSignupRoute: typeof ApiAuthSignupRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -500,6 +539,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentOrdersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/login': {
+      id: '/api/auth/login'
+      path: '/api/auth/login'
+      fullPath: '/api/auth/login'
+      preLoaderRoute: typeof ApiAuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/logout': {
+      id: '/api/auth/logout'
+      path: '/api/auth/logout'
+      fullPath: '/api/auth/logout'
+      preLoaderRoute: typeof ApiAuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/signup': {
+      id: '/api/auth/signup'
+      path: '/api/auth/signup'
+      fullPath: '/api/auth/signup'
+      preLoaderRoute: typeof ApiAuthSignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -555,6 +615,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAgentMenuRoute: ApiAgentMenuRoute,
   ApiAgentOnboardingRoute: ApiAgentOnboardingRoute,
   ApiAgentOrdersRoute: ApiAgentOrdersRoute,
+  ApiAuthLoginRoute: ApiAuthLoginRoute,
+  ApiAuthLogoutRoute: ApiAuthLogoutRoute,
+  ApiAuthSignupRoute: ApiAuthSignupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

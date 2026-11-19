@@ -35,7 +35,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export type AuthResult = { ok: true } | { ok: false; error: string }
 
 export const getSessionFn = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<SessionPayload | null> => getSessionPayload(),
+  async (): Promise<SessionPayload | null> => await getSessionPayload(),
 )
 
 export const signupFn = createServerFn({ method: 'POST' })
@@ -50,12 +50,12 @@ export const signupFn = createServerFn({ method: 'POST' })
     if (password.length < 8) {
       return { ok: false, error: 'Le mot de passe doit faire au moins 8 caractères.' }
     }
-    if (findUserByEmail(email)) {
+    if (await findUserByEmail(email)) {
       return { ok: false, error: 'Un compte existe déjà avec cet email. Connectez-vous.' }
     }
 
-    const user = createUser({ email, name, passwordHash: hashPassword(password) })
-    startSession(user.id)
+    const user = await createUser({ email, name, passwordHash: hashPassword(password) })
+    await startSession(user.id)
     return { ok: true }
   })
 
@@ -63,18 +63,18 @@ export const loginFn = createServerFn({ method: 'POST' })
   .validator((data: { email: string; password: string }) => data)
   .handler(async ({ data }): Promise<AuthResult> => {
     const email = data.email?.trim().toLowerCase() ?? ''
-    const user = findUserByEmail(email)
+    const user = await findUserByEmail(email)
 
     if (!user || !verifyPassword(data.password ?? '', user.passwordHash)) {
       return { ok: false, error: 'Email ou mot de passe incorrect.' }
     }
 
-    startSession(user.id)
+    await startSession(user.id)
     return { ok: true }
   })
 
 export const logoutFn = createServerFn({ method: 'POST' }).handler(async () => {
-  endSession()
+  await endSession()
   return { ok: true }
 })
 
@@ -91,7 +91,7 @@ export const saveEstablishmentFn = createServerFn({ method: 'POST' })
     }) => data,
   )
   .handler(async ({ data }) => {
-    const session = getSessionPayload()
+    const session = await getSessionPayload()
     if (!session) return { ok: false as const, error: 'Session expirée.' }
 
     const name = data.name.trim()
@@ -99,7 +99,7 @@ export const saveEstablishmentFn = createServerFn({ method: 'POST' })
     if (name.length < 2) return { ok: false as const, error: 'Indiquez le nom de la pizzeria.' }
     if (address.length < 4) return { ok: false as const, error: 'Indiquez l’adresse.' }
 
-    const location = upsertLocation(session.user.id, {
+    const location = await upsertLocation(session.user.id, {
       name,
       address,
       postalCode: data.postalCode.trim(),
@@ -117,7 +117,7 @@ export const saveEstablishmentFn = createServerFn({ method: 'POST' })
 export const saveMenuFn = createServerFn({ method: 'POST' })
   .validator((data: { items: MenuItem[] }) => data)
   .handler(async ({ data }) => {
-    const session = getSessionPayload()
+    const session = await getSessionPayload()
     if (!session) return { ok: false as const, error: 'Session expirée.' }
 
     const items = data.items
@@ -135,8 +135,8 @@ export const saveMenuFn = createServerFn({ method: 'POST' })
       return { ok: false as const, error: 'Ajoutez au moins un produit.' }
     }
 
-    const location = setMenu(session.user.id, items)
-    upsertLocation(session.user.id, {
+    const location = await setMenu(session.user.id, items)
+    await upsertLocation(session.user.id, {
       onboardingStep: Math.max(location.onboardingStep, 3),
     })
 
@@ -146,7 +146,7 @@ export const saveMenuFn = createServerFn({ method: 'POST' })
 export const saveServiceFn = createServerFn({ method: 'POST' })
   .validator((data: { hours: DayHours[]; delivery: DeliverySettings }) => data)
   .handler(async ({ data }) => {
-    const session = getSessionPayload()
+    const session = await getSessionPayload()
     if (!session) return { ok: false as const, error: 'Session expirée.' }
 
     const hours = data.hours
@@ -166,7 +166,7 @@ export const saveServiceFn = createServerFn({ method: 'POST' })
       postalCodes: data.delivery.postalCodes.trim(),
     }
 
-    upsertLocation(session.user.id, {
+    await upsertLocation(session.user.id, {
       hours: hours.length === 7 ? hours : defaultHours(),
       delivery,
       onboardingStep: Math.max(session.location?.onboardingStep ?? 3, 4),
@@ -214,19 +214,19 @@ function provisionRuntime(location: {
 export const activateFn = createServerFn({ method: 'POST' })
   .validator((data: { twilioNumber?: string }) => data)
   .handler(async ({ data }) => {
-    const session = getSessionPayload()
+    const session = await getSessionPayload()
     if (!session) return { ok: false as const, error: 'Session expirée.' }
     if (!session.location || session.location.menu.length === 0) {
       return { ok: false as const, error: 'Ajoutez au moins un produit au menu.' }
     }
 
     if (data.twilioNumber) {
-      upsertLocation(session.user.id, {
+      await upsertLocation(session.user.id, {
         twilioNumber: data.twilioNumber.trim(),
       })
     }
 
-    const location = activateLocation(session.user.id)
+    const location = await activateLocation(session.user.id)
     const provisioned = provisionRuntime({
       id: location.id,
       name: location.name,
@@ -239,10 +239,10 @@ export const activateFn = createServerFn({ method: 'POST' })
 export const saveTelephonyFn = createServerFn({ method: 'POST' })
   .validator((data: { twilioNumber: string }) => data)
   .handler(async ({ data }) => {
-    const session = getSessionPayload()
+    const session = await getSessionPayload()
     if (!session) return { ok: false as const, error: 'Session expirée.' }
 
-    const location = upsertLocation(session.user.id, {
+    const location = await upsertLocation(session.user.id, {
       twilioNumber: data.twilioNumber.trim(),
     })
     const provisioned = provisionRuntime({
@@ -257,36 +257,36 @@ export const saveTelephonyFn = createServerFn({ method: 'POST' })
 export const updateMenuItemFn = createServerFn({ method: 'POST' })
   .validator((data: { id: string; patch: Partial<MenuItem> }) => data)
   .handler(async ({ data }) => {
-    const session = getSessionPayload()
+    const session = await getSessionPayload()
     if (!session) return { ok: false as const, error: 'Session expirée.' }
-    const location = updateMenuItem(session.user.id, data.id, data.patch)
+    const location = await updateMenuItem(session.user.id, data.id, data.patch)
     return { ok: true as const, menu: location?.menu ?? [] }
   })
 
 export const addMenuItemFn = createServerFn({ method: 'POST' })
   .validator((data: Omit<MenuItem, 'id'>) => data)
   .handler(async ({ data }) => {
-    const session = getSessionPayload()
+    const session = await getSessionPayload()
     if (!session?.location) return { ok: false as const, error: 'Session expirée.' }
     const item: MenuItem = { ...data, id: randomUUID() }
-    const location = setMenu(session.user.id, [...session.location.menu, item])
+    const location = await setMenu(session.user.id, [...session.location.menu, item])
     return { ok: true as const, menu: location?.menu ?? [] }
   })
 
 export const removeMenuItemFn = createServerFn({ method: 'POST' })
   .validator((data: { id: string }) => data)
   .handler(async ({ data }) => {
-    const session = getSessionPayload()
+    const session = await getSessionPayload()
     if (!session) return { ok: false as const, error: 'Session expirée.' }
-    const location = removeMenuItem(session.user.id, data.id)
+    const location = await removeMenuItem(session.user.id, data.id)
     return { ok: true as const, menu: location?.menu ?? [] }
   })
 
 export const getDashboardFn = createServerFn({ method: 'GET' }).handler(async () => {
-  const session = getSessionPayload()
+  const session = await getSessionPayload()
   if (!session) return null
 
-  const orders = listOrders(session.user.id)
+  const orders = await listOrders(session.user.id)
   return {
     user: session.user,
     location: session.location,
@@ -295,7 +295,7 @@ export const getDashboardFn = createServerFn({ method: 'GET' }).handler(async ()
 })
 
 export const getMenuFn = createServerFn({ method: 'GET' }).handler(async () => {
-  const session = getSessionPayload()
+  const session = await getSessionPayload()
   if (!session?.location) return null
   return { location: session.location }
 })
@@ -306,10 +306,10 @@ export const getMenuFn = createServerFn({ method: 'GET' }).handler(async () => {
 export const getTrackingFn = createServerFn({ method: 'GET' })
   .validator((data: { token: string }) => data)
   .handler(async ({ data }) => {
-    const order = getOrderByToken(data.token)
+    const order = await getOrderByToken(data.token)
     if (!order) return null
 
-    const location = findLocationById(order.locationId)
+    const location = await findLocationById(order.locationId)
 
     return {
       order,
@@ -329,11 +329,11 @@ export const getTrackingFn = createServerFn({ method: 'GET' })
 export const getDriverViewFn = createServerFn({ method: 'GET' })
   .validator((data: { token: string }) => data)
   .handler(async ({ data }) => {
-    const driver = findDriverByToken(data.token)
+    const driver = await findDriverByToken(data.token)
     if (!driver || !driver.active) return null
 
-    const location = findLocationById(driver.locationId)
-    const orders = driverOrders(driver)
+    const location = await findLocationById(driver.locationId)
+    const orders = await driverOrders(driver)
 
     return {
       driver: { id: driver.id, name: driver.name, phone: driver.phone },
@@ -348,7 +348,7 @@ export const getDriverViewFn = createServerFn({ method: 'GET' })
 export const takeDeliveryFn = createServerFn({ method: 'POST' })
   .validator((data: { token: string; orderId: string }) => data)
   .handler(async ({ data }) => {
-    const order = takeOrder(data.token, data.orderId)
+    const order = await takeOrder(data.token, data.orderId)
     if (!order) return { ok: false as const, error: 'Course indisponible.' }
     return { ok: true as const }
   })
@@ -356,16 +356,16 @@ export const takeDeliveryFn = createServerFn({ method: 'POST' })
 export const completeDeliveryFn = createServerFn({ method: 'POST' })
   .validator((data: { token: string; orderId: string }) => data)
   .handler(async ({ data }) => {
-    const order = completeOrder(data.token, data.orderId)
+    const order = await completeOrder(data.token, data.orderId)
     if (!order) return { ok: false as const, error: 'Course introuvable.' }
     return { ok: true as const }
   })
 
 export const listDriversFn = createServerFn({ method: 'GET' }).handler(
   async () => {
-    const session = getSessionPayload()
+    const session = await getSessionPayload()
     if (!session?.location) return []
-    return listDrivers(session.location.id).map((driver) => ({
+    return (await listDrivers(session.location.id)).map((driver) => ({
       id: driver.id,
       name: driver.name,
       phone: driver.phone,
@@ -378,7 +378,7 @@ export const listDriversFn = createServerFn({ method: 'GET' }).handler(
 export const createDriverFn = createServerFn({ method: 'POST' })
   .validator((data: { name: string; phone: string }) => data)
   .handler(async ({ data }) => {
-    const session = getSessionPayload()
+    const session = await getSessionPayload()
     if (!session?.location) {
       return { ok: false as const, error: 'Session expirée.' }
     }
@@ -386,7 +386,7 @@ export const createDriverFn = createServerFn({ method: 'POST' })
       return { ok: false as const, error: 'Indiquez le prénom du livreur.' }
     }
 
-    const driver = createDriver({
+    const driver = await createDriver({
       locationId: session.location.id,
       name: data.name,
       phone: data.phone,
@@ -398,12 +398,12 @@ export const createDriverFn = createServerFn({ method: 'POST' })
 export const toggleDriverFn = createServerFn({ method: 'POST' })
   .validator((data: { id: string; active: boolean }) => data)
   .handler(async ({ data }) => {
-    const session = getSessionPayload()
+    const session = await getSessionPayload()
     if (!session?.location) {
       return { ok: false as const, error: 'Session expirée.' }
     }
 
-    const driver = setDriverActive(data.id, data.active)
+    const driver = await setDriverActive(data.id, data.active)
     if (!driver || driver.locationId !== session.location.id) {
       return { ok: false as const, error: 'Livreur introuvable.' }
     }
@@ -419,17 +419,17 @@ export const updateOrderStatusFn = createServerFn({ method: 'POST' })
     }) => data,
   )
   .handler(async ({ data }) => {
-    const session = getSessionPayload()
+    const session = await getSessionPayload()
     if (!session?.location) {
       return { ok: false as const, error: 'Session expirée.' }
     }
 
-    const order = getOrderById(data.orderId)
+    const order = await getOrderById(data.orderId)
     if (!order || order.locationId !== session.location.id) {
       return { ok: false as const, error: 'Commande introuvable.' }
     }
 
-    const updated = updateOrderStatus(order.id, data.status)
+    const updated = await updateOrderStatus(order.id, data.status)
     return updated
       ? { ok: true as const }
       : { ok: false as const, error: 'Mise à jour impossible.' }

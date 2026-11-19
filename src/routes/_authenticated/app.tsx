@@ -1,7 +1,6 @@
 import { Link, Outlet, createFileRoute, useNavigate } from '@tanstack/react-router'
 
 import { BrandMark } from '#/components/brand'
-import { logoutFn } from '#/server/api'
 
 export const Route = createFileRoute('/_authenticated/app')({
   head: () => ({ meta: [{ title: 'Commandes, PizzaVoice' }] }),
@@ -22,7 +21,7 @@ function AppLayout() {
   const location = session.location
 
   async function signOut() {
-    await logoutFn()
+    await fetch('/api/auth/logout', { method: 'POST' })
     await navigate({ to: '/' })
   }
 

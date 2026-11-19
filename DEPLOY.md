@@ -1,5 +1,34 @@
 # Déploiement
 
+Deux cibles possibles.
+
+## A. Vercel (app) + Supabase — recommandé aujourd'hui
+
+L'app se déploie sur Vercel. Le **runtime vocal ne peut pas** y tourner : il
+tient des WebSockets ouverts pendant des minutes, ce que les fonctions Vercel
+ne permettent pas. Il reste sur une machine persistante et l'app l'appelle en
+`wss://`.
+
+1. Coller `supabase/schema.sql` dans Supabase → SQL Editor → Run.
+2. Variables à définir sur Vercel :
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY` (Production, Preview et Development)
+3. Construire et déployer :
+
+```bash
+npm i
+NITRO_PRESET=vercel npm run build   # produit .vercel/output
+npx vercel deploy --prebuilt        # ou via Git : push sur main
+```
+
+Avec l'intégration Git, Vercel lance `npm run build` seul ; il faut alors
+définir `NITRO_PRESET=vercel` dans les Environment Variables du projet.
+
+Le plan gratuit Vercel suffit pour l'app. Le runtime reste à héberger
+(VPS, Fly.io, Railway) le jour où les appels téléphoniques deviennent réels.
+
+## B. VPS + Docker (tout-en-un)
+
 Objectif : un VPS, Docker, deux domaines, les clés API, et le standard répond.
 
 ## 1. Préparer le VPS

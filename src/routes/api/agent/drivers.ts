@@ -18,7 +18,7 @@ export const Route = createFileRoute('/api/agent/drivers')({
         }
 
         const tenant = new URL(request.url, 'http://localhost').searchParams.get('tenant')
-        const locations = listLocations()
+        const locations = await listLocations()
         let location = null
         if (tenant) {
           const t = tenant.replace(/\D/g, '')
@@ -34,7 +34,7 @@ export const Route = createFileRoute('/api/agent/drivers')({
           return Response.json({ ok: false, error: 'no_location' }, { status: 404 })
         }
 
-        const drivers = listDrivers(location.id)
+        const drivers = await listDrivers(location.id)
         return Response.json({
           ok: true,
           drivers: drivers.map((d) => ({

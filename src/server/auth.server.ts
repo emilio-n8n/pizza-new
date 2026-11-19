@@ -30,8 +30,8 @@ export function verifyPassword(password: string, stored: string) {
   return timingSafeEqual(candidate, expected)
 }
 
-export function startSession(userId: string) {
-  const session = createSession(userId)
+export async function startSession(userId: string) {
+  const session = await createSession(userId)
   setCookie(COOKIE, session.id, {
     httpOnly: true,
     sameSite: 'lax',
@@ -41,17 +41,17 @@ export function startSession(userId: string) {
   })
 }
 
-export function endSession() {
+export async function endSession() {
   const id = getCookie(COOKIE)
-  if (id) deleteSession(id)
+  if (id) await deleteSession(id)
   deleteCookie(COOKIE, { path: '/' })
 }
 
-export function getSessionPayload(): SessionPayload | null {
-  const session = findSession(getCookie(COOKIE))
+export async function getSessionPayload(): Promise<SessionPayload | null> {
+  const session = await findSession(getCookie(COOKIE))
   if (!session) return null
 
-  const user = findUserById(session.userId)
+  const user = await findUserById(session.userId)
   if (!user) return null
 
   const publicUser: PublicUser = {
@@ -62,6 +62,6 @@ export function getSessionPayload(): SessionPayload | null {
 
   return {
     user: publicUser,
-    location: findLocationByUser(user.id),
+    location: await findLocationByUser(user.id),
   }
 }

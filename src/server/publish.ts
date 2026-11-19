@@ -23,7 +23,7 @@ export const publishFlowFn = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const allowed = admins()
     if (allowed.length > 0) {
-      const session = getSessionPayload()
+      const session = await getSessionPayload()
       if (!session || !allowed.includes(session.user.email.toLowerCase())) {
         return { ok: false as const, error: 'Accès Atelier non autorisé.' }
       }

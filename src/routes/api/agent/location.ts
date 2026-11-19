@@ -18,7 +18,7 @@ export const Route = createFileRoute('/api/agent/location')({
         }
 
         const tenant = new URL(request.url, 'http://localhost').searchParams.get('tenant')
-        const locations = listLocations()
+        const locations = await listLocations()
         let location = null
         if (tenant) {
           const t = tenant.replace(/\D/g, '')

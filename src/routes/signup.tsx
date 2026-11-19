@@ -2,7 +2,7 @@ import { Link, createFileRoute, redirect, useNavigate } from '@tanstack/react-ro
 import { useState } from 'react'
 
 import { Brand } from '#/components/brand'
-import { getSessionFn, signupFn } from '#/server/api'
+import { getSessionFn } from '#/server/api'
 
 export const Route = createFileRoute('/signup')({
   head: () => ({
@@ -35,20 +35,23 @@ function Signup() {
     setError(null)
 
     const form = new FormData(event.currentTarget)
-    const result = await signupFn({
-      data: {
+    const response = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
         name: String(form.get('name') ?? ''),
         email: String(form.get('email') ?? ''),
         password: String(form.get('password') ?? ''),
-      },
+      }),
     })
+    const result = (await response.json()) as { ok: boolean; error?: string }
 
     if (result.ok) {
       await navigate({ to: '/voice-setup' })
       return
     }
 
-    setError(result.error)
+    setError(result.error ?? 'Une erreur est survenue.')
     setPending(false)
   }
 
