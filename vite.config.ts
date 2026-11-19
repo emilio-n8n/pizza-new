@@ -7,6 +7,11 @@ import { nitro } from 'nitro/vite'
 import viteReact from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
+// Nitro ne sert qu'au build de production (preset Vercel).
+// En dev il prend la main sur le serveur Vite et casse l'entrée cliente
+// (page servie en SSR mais jamais hydratée : les formulaires ne répondent plus).
+const useNitro = Boolean(process.env.NITRO_PRESET)
+
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
   server: {
@@ -18,9 +23,7 @@ const config = defineConfig({
     devtools(),
     tailwindcss(),
     tanstackStart(),
-    // Nitro produit la sortie serveur. En local il sert un serveur Node ;
-    // avec NITRO_PRESET=vercel il génère .vercel/output pour Vercel.
-    nitro({ preset: process.env.NITRO_PRESET }),
+    ...(useNitro ? [nitro({ preset: process.env.NITRO_PRESET })] : []),
     viteReact(),
   ],
 })
