@@ -27,7 +27,35 @@ définir `NITRO_PRESET=vercel` dans les Environment Variables du projet.
 Le plan gratuit Vercel suffit pour l'app. Le runtime reste à héberger
 (VPS, Fly.io, Railway) le jour où les appels téléphoniques deviennent réels.
 
-## B. VPS + Docker (tout-en-un)
+## C. Render (runtime vocal) — déployé le 20/11/2026
+
+Le runtime est en ligne sur **https://pizzavoice-runtime.onrender.com** (plan
+gratuit, Francfort, health check `/health`). Vercel et Render se parlent :
+l'app pointe le WebSocket vers `wss://pizzavoice-runtime.onrender.com/phone-ws`.
+
+Variables requises côté Render : `GEMINI_API_KEY`, `GROQ_API_KEY`,
+`AGENT_API_KEY` (la même valeur que sur Vercel, sinon l'API produit refuse
+toutes les requêtes), `PRODUCT_API_URL=https://pizzavoice.vercel.app`,
+`PUBLIC_WS_URL` et `VITE_RUNTIME_WS_URL` (côté Vercel, pour le bundle client).
+
+**Piège à connaître** : `VITE_RUNTIME_WS_URL` est inlinée dans le bundle *au
+moment du build*. La définir dans le tableau de bord Vercel ne suffit pas — il
+faut la fournir à la commande de build :
+
+```bash
+NITRO_PRESET=vercel VITE_RUNTIME_WS_URL=wss://pizzavoice-runtime.onrender.com/phone-ws \
+  npm run build
+```
+
+Limites du plan gratuit : le service s'endort après 15 minutes sans trafic
+(mais reste éveillé pendant un WebSocket), redémarrage en 30 à 60 s, 512 Mo de
+RAM, 0,1 CPU. Pour des appels réels, passer au plan Starter (7 $/mois).
+
+Le dépôt `pizza-new` est **public** depuis le 20/11/2026 pour permettre à
+Render de le cloner. Historique vérifié avant bascule : aucun secret, aucun
+`.env` versionné.
+
+## D. VPS + Docker (tout-en-un)
 
 Objectif : un VPS, Docker, deux domaines, les clés API, et le standard répond.
 
