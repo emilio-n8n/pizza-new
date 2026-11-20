@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 
+import { runtimeWsUrl } from '#/lib/runtime-url'
+
 type Message = {
   id: string
   role: 'agent' | 'client' | 'system'
@@ -150,13 +152,9 @@ function WebPhone() {
       ctxRef.current = ctx
       await ctx.resume()
 
-      // En production le runtime est proxifié sur /phone-ws du même hôte ;
-      // on déduit l'URL du navigateur pour que le tunnel (Cloudflare) marche sans config.
-      const configured =
-        (import.meta.env.VITE_RUNTIME_WS_URL as string | undefined)?.trim() || ''
-      const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
-      const url = configured || `${scheme}://${window.location.host}/phone-ws`
-
+      // En local le runtime est proxifié sur le même hôte ; en production
+      // séparée, runtimeWsUrl() lit VITE_RUNTIME_WS_URL inlinée au build.
+      const url = runtimeWsUrl('/phone-ws')
       const ws = new WebSocket(url)
       wsRef.current = ws
 

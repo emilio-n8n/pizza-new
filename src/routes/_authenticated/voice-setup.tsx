@@ -2,6 +2,7 @@ import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 
 import { Brand } from '#/components/brand'
+import { runtimeWsUrl } from '#/lib/runtime-url'
 
 export const Route = createFileRoute('/_authenticated/voice-setup')({
   head: () => ({ meta: [{ title: 'Configuration à la voix, PizzaVoice' }] }),
@@ -100,8 +101,7 @@ function VoiceSetup() {
       ctxRef.current = ctx
       await ctx.resume()
 
-      const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
-      const ws = new WebSocket(`${scheme}://${window.location.host}/onboarding-ws`)
+      const ws = new WebSocket(runtimeWsUrl('/onboarding-ws'))
       wsRef.current = ws
 
       ws.onopen = () => {

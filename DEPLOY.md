@@ -39,13 +39,21 @@ toutes les requêtes), `PRODUCT_API_URL=https://pizzavoice.vercel.app`,
 `PUBLIC_WS_URL` et `VITE_RUNTIME_WS_URL` (côté Vercel, pour le bundle client).
 
 **Piège à connaître** : `VITE_RUNTIME_WS_URL` est inlinée dans le bundle *au
-moment du build*. La définir dans le tableau de bord Vercel ne suffit pas — il
-faut la fournir à la commande de build :
+moment du build*. La définir dans le tableau de bord Vercel ne suffit pas, et la
+passer en variable d'environnement de commande ne suffit pas non plus : Vite
+donne la priorité au fichier `.env`, où la variable est vide. Il faut donc la
+renseigner dans `.env` (non versionné) avant de construire :
 
 ```bash
-NITRO_PRESET=vercel VITE_RUNTIME_WS_URL=wss://pizzavoice-runtime.onrender.com/phone-ws \
-  npm run build
+# .env
+VITE_RUNTIME_WS_URL=wss://pizzavoice-runtime.onrender.com/phone-ws
+
+NITRO_PRESET=vercel npm run build
 ```
+
+Les deux pages qui parlent au runtime passent par `src/lib/runtime-url.ts` :
+il lit la variable, remplace le chemin, et retombe sur l'hôte courant si elle
+est absente (utile en local et derrière un tunnel unique).
 
 Limites du plan gratuit : le service s'endort après 15 minutes sans trafic
 (mais reste éveillé pendant un WebSocket), redémarrage en 30 à 60 s, 512 Mo de
