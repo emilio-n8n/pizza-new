@@ -19,7 +19,6 @@ import { Route as StudioRouteImport } from './routes/studio'
 import { Route as TarifsRouteImport } from './routes/tarifs'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
-import { Route as AuthenticatedVoiceSetupRouteImport } from './routes/_authenticated/voice-setup'
 import { Route as ApiContactRouteImport } from './routes/api/contact'
 import { Route as LivreurTokenRouteImport } from './routes/livreur.$token'
 import { Route as SuiviTokenRouteImport } from './routes/suivi.$token'
@@ -36,6 +35,7 @@ import { Route as ApiAgentOrdersRouteImport } from './routes/api/agent/orders'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthSignupRouteImport } from './routes/api/auth/signup'
+import { Route as ApiImportMenuRouteImport } from './routes/api/import/menu'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -84,11 +84,6 @@ const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedVoiceSetupRoute = AuthenticatedVoiceSetupRouteImport.update({
-  id: '/voice-setup',
-  path: '/voice-setup',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const ApiContactRoute = ApiContactRouteImport.update({
@@ -174,6 +169,11 @@ const ApiAuthSignupRoute = ApiAuthSignupRouteImport.update({
   path: '/api/auth/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiImportMenuRoute = ApiImportMenuRouteImport.update({
+  id: '/api/import/menu',
+  path: '/api/import/menu',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -185,7 +185,6 @@ export interface FileRoutesByFullPath {
   '/tarifs': typeof TarifsRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/onboarding': typeof AuthenticatedOnboardingRoute
-  '/voice-setup': typeof AuthenticatedVoiceSetupRoute
   '/api/contact': typeof ApiContactRoute
   '/livreur/$token': typeof LivreurTokenRoute
   '/suivi/$token': typeof SuiviTokenRoute
@@ -201,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/signup': typeof ApiAuthSignupRoute
+  '/api/import/menu': typeof ApiImportMenuRoute
   '/app/': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRoutesByTo {
@@ -212,7 +212,6 @@ export interface FileRoutesByTo {
   '/studio': typeof StudioRoute
   '/tarifs': typeof TarifsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
-  '/voice-setup': typeof AuthenticatedVoiceSetupRoute
   '/api/contact': typeof ApiContactRoute
   '/livreur/$token': typeof LivreurTokenRoute
   '/suivi/$token': typeof SuiviTokenRoute
@@ -228,6 +227,7 @@ export interface FileRoutesByTo {
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/signup': typeof ApiAuthSignupRoute
+  '/api/import/menu': typeof ApiImportMenuRoute
   '/app': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRoutesById {
@@ -242,7 +242,6 @@ export interface FileRoutesById {
   '/tarifs': typeof TarifsRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
-  '/_authenticated/voice-setup': typeof AuthenticatedVoiceSetupRoute
   '/api/contact': typeof ApiContactRoute
   '/livreur/$token': typeof LivreurTokenRoute
   '/suivi/$token': typeof SuiviTokenRoute
@@ -258,6 +257,7 @@ export interface FileRoutesById {
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/signup': typeof ApiAuthSignupRoute
+  '/api/import/menu': typeof ApiImportMenuRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRouteTypes {
@@ -272,7 +272,6 @@ export interface FileRouteTypes {
     | '/tarifs'
     | '/app'
     | '/onboarding'
-    | '/voice-setup'
     | '/api/contact'
     | '/livreur/$token'
     | '/suivi/$token'
@@ -288,6 +287,7 @@ export interface FileRouteTypes {
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/signup'
+    | '/api/import/menu'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -299,7 +299,6 @@ export interface FileRouteTypes {
     | '/studio'
     | '/tarifs'
     | '/onboarding'
-    | '/voice-setup'
     | '/api/contact'
     | '/livreur/$token'
     | '/suivi/$token'
@@ -315,6 +314,7 @@ export interface FileRouteTypes {
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/signup'
+    | '/api/import/menu'
     | '/app'
   id:
     | '__root__'
@@ -328,7 +328,6 @@ export interface FileRouteTypes {
     | '/tarifs'
     | '/_authenticated/app'
     | '/_authenticated/onboarding'
-    | '/_authenticated/voice-setup'
     | '/api/contact'
     | '/livreur/$token'
     | '/suivi/$token'
@@ -344,6 +343,7 @@ export interface FileRouteTypes {
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/signup'
+    | '/api/import/menu'
     | '/_authenticated/app/'
   fileRoutesById: FileRoutesById
 }
@@ -367,6 +367,7 @@ export interface RootRouteChildren {
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthSignupRoute: typeof ApiAuthSignupRoute
+  ApiImportMenuRoute: typeof ApiImportMenuRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -439,13 +440,6 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/voice-setup': {
-      id: '/_authenticated/voice-setup'
-      path: '/voice-setup'
-      fullPath: '/voice-setup'
-      preLoaderRoute: typeof AuthenticatedVoiceSetupRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/api/contact': {
@@ -560,6 +554,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSignupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/import/menu': {
+      id: '/api/import/menu'
+      path: '/api/import/menu'
+      fullPath: '/api/import/menu'
+      preLoaderRoute: typeof ApiImportMenuRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -585,13 +586,11 @@ const AuthenticatedAppRouteWithChildren =
 interface AuthenticatedRouteChildren {
   AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
-  AuthenticatedVoiceSetupRoute: typeof AuthenticatedVoiceSetupRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
-  AuthenticatedVoiceSetupRoute: AuthenticatedVoiceSetupRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -618,6 +617,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthLoginRoute: ApiAuthLoginRoute,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthSignupRoute: ApiAuthSignupRoute,
+  ApiImportMenuRoute: ApiImportMenuRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

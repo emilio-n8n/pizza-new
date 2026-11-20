@@ -18,7 +18,7 @@ export const Route = createFileRoute('/signup')({
   beforeLoad: async () => {
     const session = await getSessionFn()
     if (session) {
-      throw redirect({ to: session.location?.status === 'active' ? '/app' : '/voice-setup' })
+      throw redirect({ to: session.location?.status === 'active' ? '/app' : '/onboarding' })
     }
   },
   component: Signup,

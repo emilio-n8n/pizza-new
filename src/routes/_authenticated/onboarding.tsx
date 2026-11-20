@@ -1,5 +1,5 @@
 import { Link, createFileRoute, redirect, useNavigate, useRouter } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 import { Brand } from '#/components/brand'
 import {
@@ -60,6 +60,8 @@ function Onboarding() {
     })),
   )
   const [paste, setPaste] = useState('')
+  const [reading, setReading] = useState(false)
+  const photoRef = useRef<HTMLInputElement>(null)
   const [hours, setHours] = useState<DayHours[]>(location?.hours?.length ? location.hours : defaultHours())
   const [delivery, setDelivery] = useState<DeliverySettings>(location?.delivery ?? defaultDelivery())
   const [copied, setCopied] = useState<string | null>(null)
@@ -155,6 +157,89 @@ function Onboarding() {
         available: true,
       },
     ])
+  }
+
+  /** Réduit une photo de carte avant l'envoi : 1600 px de large suffisent. */
+  async function shrinkImage(file: File): Promise<string> {
+    const bitmap = await createImageBitmap(file)
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bitmap.width * scale)
+    canvas.height = Math.round(bitmap.height * scale)
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('canvas indisponible')
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL('image/jpeg', 0.85)
+  }
+
+  async function readFromServer(payload: { image?: string; text?: string }) {
+    setReading(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/import/menu', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const result = (await response.json()) as {
+        ok: boolean
+        error?: string
+        lines?: Array<{ category: string; name: string; price: string }>
+      }
+
+      if (!result.ok || !result.lines?.length) {
+        setError(result.error ?? 'Rien de lisible sur cette carte.')
+        return
+      }
+
+      // On repasse par parseMenuText : un seul analyseur fait foi.
+      const text = result.lines
+        .map((line) => {
+          const price = line.price.replace(/[^\d.,]/g, '').replace('.', ',')
+          return price
+            ? `${line.category || 'Carte'} | ${line.name} ${price}`
+            : `${line.category || 'Carte'} | ${line.name}`
+        })
+        .join('\n')
+
+      const parsed = parseMenuText(
+        result.lines
+          .map((line) => {
+            const price = line.price.replace(/[^\d.,]/g, '').replace('.', ',')
+            return price ? `${line.name} ${price}` : line.name
+          })
+          .join('\n'),
+      )
+
+      if (parsed.length === 0) {
+        setPaste(text.replace(/ \| /g, ' — '))
+        setError('Aucun prix n\'a été reconnu. Vérifiez les lignes, puis ajoutez-les.')
+        return
+      }
+
+      setItems((current) => [
+        ...current,
+        ...parsed.map((item) => ({ ...item, price: formatPriceInput(item.priceCents) })),
+      ])
+    } catch (issue) {
+      console.error(issue)
+      setError('Lecture impossible. Réessayez ou saisissez à la main.')
+    } finally {
+      setReading(false)
+    }
+  }
+
+  async function onPhoto(file: File | null) {
+    if (!file) return
+    setReading(true)
+    try {
+      const image = await shrinkImage(file)
+      await readFromServer({ image })
+    } catch (issue) {
+      console.error(issue)
+      setReading(false)
+      setError('Cette image n\'a pas pu être lue.')
+    }
   }
 
   function importPaste() {
@@ -311,13 +396,38 @@ function Onboarding() {
             <>
               <h1>Votre carte.</h1>
               <p className="lede">
-                Collez votre carte ou ajoutez les produits à la main. L'agent ne proposera
-                que ce qui figure ici, avec vos prix.
+                Photographiez votre carte, dictez-la, ou saisissez-la à la main. L'agent ne
+                proposera que ce qui figure ici, avec vos prix.
               </p>
 
               <div className="menu-import">
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    type="button"
+                    disabled={reading}
+                    onClick={() => photoRef.current?.click()}
+                  >
+                    {reading ? 'Lecture en cours…' : 'Prendre une photo'}
+                  </button>
+                  <input
+                    ref={photoRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    hidden
+                    onChange={(event) => {
+                      void onPhoto(event.target.files?.[0] ?? null)
+                      event.target.value = ''
+                    }}
+                  />
+                  <span className="wizard-hint" style={{ alignSelf: 'center' }}>
+                    ou utilisez le micro de votre clavier pour dicter vos produits
+                  </span>
+                </div>
+
                 <label htmlFor="paste" className="field" style={{ fontSize: 13, fontWeight: 600 }}>
-                  Coller une carte
+                  Dicter ou coller une carte
                 </label>
                 <p className="wizard-hint" style={{ marginTop: 4 }}>
                   Une ligne par produit. Un titre sans prix crée une catégorie.
@@ -335,7 +445,7 @@ function Onboarding() {
                   onClick={importPaste}
                   style={{ marginTop: 10 }}
                 >
-                  Ajouter ces lignes
+                  {reading ? 'Lecture…' : 'Ajouter ces lignes'}
                 </button>
               </div>
 
